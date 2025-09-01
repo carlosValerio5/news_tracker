@@ -96,7 +96,7 @@ class Scraper:
                 print(f"Failed to fetch {feed_url} : {e}")
                 return
 
-            soup = BeautifulSoup(response.text, "xml")
+            soup = BeautifulSoup(response.text, features="xml")
 
             items = soup.find_all('item')
             for item in items:
@@ -105,8 +105,10 @@ class Scraper:
                 headline = item.find('title').get_text()
                 url = item.find('link').get_text().strip()
 
-                published_date = item.find('pubDate').get_text().strip()
-                published_date = parse_date(published_date)
+                published_date = item.find('pubDate')
+                if published_date:
+                    published_date = published_date.get_text().strip()
+                    published_date = parse_date(published_date)
 
                 summary = item.find('description').get_text().strip()
 
