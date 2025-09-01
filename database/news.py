@@ -5,8 +5,9 @@ from sqlalchemy.orm import declarative_base, relationship
 meta = MetaData(schema='news_schema')
 Base = declarative_base(metadata=meta)
 
-'''News model'''
 class News(Base):
+    '''News model'''
+
     __tablename__ = 'news'
     id = Column(Integer, primary_key=True)
     headline = Column(String, nullable=False)
@@ -19,6 +20,7 @@ class News(Base):
     keywords = relationship('ArticleKeywords', back_populates='news')
 
 class ArticleKeywords(Base):
+    '''ArticleKeywords sqlalchemy model'''
     __tablename__ = 'articlekeywords'
 
     id = Column(Integer, primary_key=True)

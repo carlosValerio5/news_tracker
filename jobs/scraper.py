@@ -3,11 +3,11 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import time
 from datetime import datetime
-from news import News
+from database.news import News
 from sqlalchemy.orm import Session
-from data_base import engine
-'''Scraper object to extract bbc news'''
+from database.data_base import engine
 class Scraper:
+    '''Scraper object to extract bbc news'''
 
     def __init__(self):
         self.__request_URL = "https://bbc.co.uk/news"
