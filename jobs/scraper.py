@@ -137,16 +137,30 @@ def extract_section_from_url(url: str) -> str:
     # Extract the path parts, ignoring empty parts
     parts = [part for part in parsed.path.split('/') if part]
 
-    # We expect 'rss.xml' as the last part
-    if parts and parts[-1].lower() == 'rss.xml':
-        # section is the part before 'rss.xml'
-        if len(parts) >= 2:
-            return parts[-2]
-    return None
+    # If not enough path parts, return None
+    if len(parts) < 2 or parts[-1].lower() != "rss.xml":
+        return None
 
-scraper = Scraper()
-scraper.process_feeds()
+    if len(parts) == 2:
+        return parts[0]
 
-with Session(engine) as session:
-    session.add_all(scraper.get_news())
-    session.commit()
+    elif len(parts) == 3:
+        return parts[1]
+
+    elif "topics" in parts:
+        try:
+            topics_i = parts.index('topics')
+            if topics_i + 1 < len(parts):
+                return f"topics:{parts[topics_i+1]}"
+        except ValueError:
+            pass
+    return parts[-2]
+
+
+if __name__ == '__main__':
+    scraper = Scraper()
+    scraper.process_feeds()
+
+    with Session(engine) as session:
+        session.add_all(scraper.get_news())
+        session.commit()
