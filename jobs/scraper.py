@@ -171,7 +171,7 @@ def extract_section_from_url(url: str) -> str:
     return parts[-2]
 
 
-if __name__ == '__main__':
+def start_scraping_job():
     #extract headlines
     scraper = Scraper()
     scraper.process_feeds()
@@ -184,3 +184,7 @@ if __name__ == '__main__':
     #send to sqs queue
     aws_helper = AwsHelper()
     aws_helper.send_batch(scraper.get_headlines())
+
+
+if __name__ == '__main__':
+    start_scraping_job()
