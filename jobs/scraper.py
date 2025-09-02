@@ -2,10 +2,12 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import time
-from datetime import datetime
-from database.news import News
+from datetime import datetime, timedelta
+from database.models import News
 from sqlalchemy.orm import Session
 from database.data_base import engine
+from aws_handler.sqs import AwsHelper
+
 class Scraper:
     '''Scraper object to extract bbc news'''
 
@@ -14,6 +16,10 @@ class Scraper:
         self.__navbar_links : list[str] = self.__extract_navbar_links()
         self.__rss_feeds : list[str] = self.__extract_rss_feeds()
         self.__news: list[News] = []
+        self.__headlines: list[str] = []
+
+    def get_headlines(self) -> list:
+        return self.__headlines
 
     def get_rss_feeds(self) -> list:
         return self.__rss_feeds
@@ -100,19 +106,23 @@ class Scraper:
 
             items = soup.find_all('item')
             for item in items:
-                news_section = extract_section_from_url(feed_url)
-
-                headline = item.find('title').get_text()
-                url = item.find('link').get_text().strip()
-
                 published_date = item.find('pubDate')
                 if published_date:
                     published_date = published_date.get_text().strip()
                     published_date = parse_date(published_date)
 
+                if published_date < datetime.now() - timedelta(hours=8):
+                    continue
+
+                news_section = extract_section_from_url(feed_url)
+
+                headline = item.find('title').get_text()
+                url = item.find('link').get_text().strip()
+
                 summary = item.find('description').get_text().strip()
 
                 news = News(headline=headline, url=url, news_section=news_section, published_at=published_date, summary=summary)
+                self.__headlines.append(headline) 
                 self.__news.append(news)
 
                 
@@ -160,9 +170,15 @@ def extract_section_from_url(url: str) -> str:
 
 
 if __name__ == '__main__':
+    #extract headlines
     scraper = Scraper()
     scraper.process_feeds()
 
+    #send to db
     with Session(engine) as session:
         session.add_all(scraper.get_news())
         session.commit()
+
+    #send to sqs queue
+    aws_helper = AwsHelper()
+    aws_helper.send_batch(scraper.get_headlines())
