@@ -3,8 +3,9 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import time
 from datetime import datetime, timedelta
-from database.models import News
 from sqlalchemy.orm import Session
+
+from database.models import News
 from database.data_base import engine
 from aws_handler.sqs import AwsHelper
 
@@ -111,6 +112,7 @@ class Scraper:
                     published_date = published_date.get_text().strip()
                     published_date = parse_date(published_date)
 
+                #datetime uses UTC timezone, same timezone as rss feeds
                 if published_date < datetime.now() - timedelta(hours=8):
                     continue
 

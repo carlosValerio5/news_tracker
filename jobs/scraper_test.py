@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from datetime import datetime
+from datetime import datetime, UTC
 
 from jobs.scraper import (
     Scraper,
@@ -61,19 +61,20 @@ def fake_section_html():
 
 @pytest.fixture
 def fake_rss_html():
-    return '''
+    pub_date = datetime.now(UTC).strftime('%a, %d %b %Y %H:%M:%S %Z')
+    return f'''
     <rss>
       <channel>
         <item>
           <title>Headline 1</title>
           <link>https://bbc.co.uk/news/article-1</link>
-          <pubDate>Tue, 26 Aug 2025 12:38:21 GMT</pubDate>
+          <pubDate>{pub_date}</pubDate>
           <description>Summary 1</description>
         </item>
         <item>
           <title>Headline 2</title>
           <link>https://bbc.co.uk/news/article-2</link>
-          <pubDate>Wed, 27 Aug 2025 12:38:21 GMT</pubDate>
+          <pubDate>{pub_date}</pubDate>
           <description>Summary 2</description>
         </item>
       </channel>
