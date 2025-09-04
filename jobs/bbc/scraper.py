@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 import time
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from database.models import News
 from database.data_base import engine
@@ -71,7 +72,7 @@ class Scraper:
             response = requests.get(self.__request_URL, timeout=10)
             response.raise_for_status()
         except requests.RequestException as e:
-            print(f"Failed to fetch {self.__request_URL}")
+            print(f"Failed to fetch {self.__request_URL}: {e}")
             return []
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -172,9 +173,28 @@ def extract_section_from_url(url: str) -> str:
 
 
 def start_scraping_job():
+
+    #test db connection
+    with Session(engine) as session:
+        try:
+            session.execute(text('Select 1'))
+            print('\n\n----------------Connection Successful!')
+        except Exception as e:
+            print(f'\n\n----------------Connection Failed!:{e}')
+            return
+
+    #test sqs connection
+    try:
+        aws_helper = AwsHelper()
+        print('\n\n----------------SQS Connection Successful!')
+    except Exception as e:
+        print('\n\n----------------SQS Connection Failed!')
+        return
+
     #extract headlines
     scraper = Scraper()
     scraper.process_feeds()
+
 
     #send to db
     with Session(engine) as session:
@@ -182,8 +202,8 @@ def start_scraping_job():
         session.commit()
 
     #send to sqs queue
-    aws_helper = AwsHelper()
     aws_helper.send_batch(scraper.get_headlines())
+    print(f'Headlines count: {len(scraper.get_headlines())}')
 
 
 if __name__ == '__main__':
