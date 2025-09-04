@@ -7,17 +7,21 @@ class AwsHelper():
     '''Publisher class to send headlines to sqs'''
 
     def __init__(self):
-        sqs = boto3.resource(
-            'sqs',
-            endpoint_url='https://sqs.us-east-2.amazonaws.com/415094952618/news_queue.fifo',
-            region_name='us-east-2'
-        )
 
-        if sqs == None:
-            raise Exception('Connection to SQS failed')
+        self.__SQS = self.__get_service()
+        try:
+            self.__QUEUE = self.__SQS.get_queue_by_name(QueueName='news_queue.fifo')
+        except Exception as e:
+            print(f'Failed to get queue: {e}')
 
-        self.__SQS = sqs
-        self.__QUEUE = self.__SQS.get_queue_by_name(QueueName='news_queue.fifo')
+    '''Get SQS queue'''
+    def __get_service(self):
+        try:
+            sqs = boto3.resource('sqs')
+        except Exception as e:
+            print(f'Failed to retrieve service: {e}')
+
+        return sqs
 
 
     '''Send a single message'''
