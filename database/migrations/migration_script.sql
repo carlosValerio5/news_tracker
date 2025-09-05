@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS news_schema.dailytrends
     geo text COLLATE pg_catalog."default" NOT NULL,
     start_timestamp timestamp without time zone NOT NULL,
     search_volume integer NOT NULL,
-    increse_percentage integer NOT NULL,
+    increase_percentage integer NOT NULL,
     category text COLLATE pg_catalog."default",
     scraped_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT dailytrends_pkey PRIMARY KEY (id)
