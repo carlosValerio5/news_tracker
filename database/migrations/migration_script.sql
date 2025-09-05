@@ -14,7 +14,6 @@ CREATE DATABASE news_tracker
     IS_TEMPLATE = False;
 
 
-
 -- SCHEMA: news_schema
 
 -- DROP SCHEMA IF EXISTS news_schema ;
@@ -24,62 +23,58 @@ CREATE SCHEMA IF NOT EXISTS news_schema
 
 
 
+-- Table: news_schema.adminconfig
 
--- Table: news_schema.news
+-- DROP TABLE IF EXISTS news_schema.adminconfig;
 
--- DROP TABLE IF EXISTS news_schema.news;
-
-CREATE TABLE IF NOT EXISTS news_schema.news
+CREATE TABLE IF NOT EXISTS news_schema.adminconfig
 (
-    id integer NOT NULL DEFAULT nextval('news_schema.news_id_seq'::regclass),
-    keywords_id integer,
-    headline text COLLATE pg_catalog."default" NOT NULL,
-    url text COLLATE pg_catalog."default" NOT NULL,
-    news_section text COLLATE pg_catalog."default" NOT NULL,
-    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone,
-    summary text COLLATE pg_catalog."default",
-    published_at timestamp without time zone,
-    CONSTRAINT news_pkey PRIMARY KEY (id),
-    CONSTRAINT news_keywords_id_fkey FOREIGN KEY (keywords_id)
-        REFERENCES news_schema.articlekeywords (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
+    id integer NOT NULL DEFAULT nextval('news_schema.adminconfig_id_seq'::regclass),
+    target_email text COLLATE pg_catalog."default" NOT NULL,
+    summary_send_time time without time zone,
+    last_updated timestamp without time zone,
+    CONSTRAINT adminconfig_pkey PRIMARY KEY (id)
 )
 
 TABLESPACE pg_default;
 
-ALTER TABLE IF EXISTS news_schema.news
+ALTER TABLE IF EXISTS news_schema.adminconfig
     OWNER to postgres;
--- Index: idx_keywords_id
+-- Index: idx_last_updated
 
--- DROP INDEX IF EXISTS news_schema.idx_keywords_id;
+-- DROP INDEX IF EXISTS news_schema.idx_last_updated;
 
-CREATE INDEX IF NOT EXISTS idx_keywords_id
-    ON news_schema.news USING btree
-    (keywords_id ASC NULLS LAST)
+CREATE INDEX IF NOT EXISTS idx_last_updated
+    ON news_schema.adminconfig USING btree
+    (last_updated ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
--- Index: idx_news_section
+-- Index: idx_target_email
 
--- DROP INDEX IF EXISTS news_schema.idx_news_section;
+-- DROP INDEX IF EXISTS news_schema.idx_target_email;
 
-CREATE INDEX IF NOT EXISTS idx_news_section
-    ON news_schema.news USING btree
-    (news_section COLLATE pg_catalog."default" ASC NULLS LAST)
-    WITH (fillfactor=100, deduplicate_items=True)
-    TABLESPACE pg_default;
--- Index: idx_published_at
-
--- DROP INDEX IF EXISTS news_schema.idx_published_at;
-
-CREATE INDEX IF NOT EXISTS idx_published_at
-    ON news_schema.news USING btree
-    (published_at ASC NULLS LAST)
+CREATE INDEX IF NOT EXISTS idx_target_email
+    ON news_schema.adminconfig USING btree
+    (target_email COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 
+-- SEQUENCE: news_schema.adminconfig_id_seq
 
+-- DROP SEQUENCE IF EXISTS news_schema.adminconfig_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.adminconfig_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE news_schema.adminconfig_id_seq
+    OWNED BY news_schema.adminconfig.id;
+
+ALTER SEQUENCE news_schema.adminconfig_id_seq
+    OWNER TO postgres;
 
 
 -- Table: news_schema.articlekeywords
@@ -122,6 +117,22 @@ CREATE INDEX IF NOT EXISTS idx_keyword_1
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 
+-- SEQUENCE: news_schema.articlekeywords_id_seq
+
+-- DROP SEQUENCE IF EXISTS news_schema.articlekeywords_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.articlekeywords_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE news_schema.articlekeywords_id_seq
+    OWNED BY news_schema.articlekeywords.id;
+
+ALTER SEQUENCE news_schema.articlekeywords_id_seq
+    OWNER TO postgres;
 
 
 -- Table: news_schema.dailytrends
@@ -136,7 +147,7 @@ CREATE TABLE IF NOT EXISTS news_schema.dailytrends
     geo text COLLATE pg_catalog."default" NOT NULL,
     start_timestamp timestamp without time zone NOT NULL,
     search_volume integer NOT NULL,
-    increase_porcentage integer NOT NULL,
+    increse_percentage integer NOT NULL,
     category text COLLATE pg_catalog."default",
     scraped_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT dailytrends_pkey PRIMARY KEY (id)
@@ -157,6 +168,70 @@ CREATE INDEX IF NOT EXISTS idx_scraped_at
     TABLESPACE pg_default;
 
 
+-- SEQUENCE: news_schema.dailytrends_id_seq
+
+-- DROP SEQUENCE IF EXISTS news_schema.dailytrends_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.dailytrends_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE news_schema.dailytrends_id_seq
+    OWNED BY news_schema.dailytrends.id;
+
+ALTER SEQUENCE news_schema.dailytrends_id_seq
+    OWNER TO postgres;
+
+
+-- Table: news_schema.keywords
+
+-- DROP TABLE IF EXISTS news_schema.keywords;
+
+CREATE TABLE IF NOT EXISTS news_schema.keywords
+(
+    id integer NOT NULL DEFAULT nextval('news_schema.keywords_id_seq'::regclass),
+    keyword text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT keywords_pkey PRIMARY KEY (id),
+    CONSTRAINT keywords_keyword_key UNIQUE (keyword)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS news_schema.keywords
+    OWNER to postgres;
+-- Index: idx_keywords_keyword
+
+-- DROP INDEX IF EXISTS news_schema.idx_keywords_keyword;
+
+CREATE INDEX IF NOT EXISTS idx_keywords_keyword
+    ON news_schema.keywords USING btree
+    (keyword COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+
+-- SEQUENCE: news_schema.keywords_id_seq
+
+-- DROP SEQUENCE IF EXISTS news_schema.keywords_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.keywords_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE news_schema.keywords_id_seq
+    OWNED BY news_schema.keywords.id;
+
+ALTER SEQUENCE news_schema.keywords_id_seq
+    OWNER TO postgres;
+
+
 
 -- Table: news_schema.news
 
@@ -165,7 +240,6 @@ CREATE INDEX IF NOT EXISTS idx_scraped_at
 CREATE TABLE IF NOT EXISTS news_schema.news
 (
     id integer NOT NULL DEFAULT nextval('news_schema.news_id_seq'::regclass),
-    keywords_id integer,
     headline text COLLATE pg_catalog."default" NOT NULL,
     url text COLLATE pg_catalog."default" NOT NULL,
     news_section text COLLATE pg_catalog."default" NOT NULL,
@@ -173,26 +247,13 @@ CREATE TABLE IF NOT EXISTS news_schema.news
     updated_at timestamp without time zone,
     summary text COLLATE pg_catalog."default",
     published_at timestamp without time zone,
-    CONSTRAINT news_pkey PRIMARY KEY (id),
-    CONSTRAINT news_keywords_id_fkey FOREIGN KEY (keywords_id)
-        REFERENCES news_schema.articlekeywords (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
+    CONSTRAINT news_pkey PRIMARY KEY (id)
 )
 
 TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS news_schema.news
     OWNER to postgres;
--- Index: idx_keywords_id
-
--- DROP INDEX IF EXISTS news_schema.idx_keywords_id;
-
-CREATE INDEX IF NOT EXISTS idx_keywords_id
-    ON news_schema.news USING btree
-    (keywords_id ASC NULLS LAST)
-    WITH (fillfactor=100, deduplicate_items=True)
-    TABLESPACE pg_default;
 -- Index: idx_news_section
 
 -- DROP INDEX IF EXISTS news_schema.idx_news_section;
@@ -213,6 +274,76 @@ CREATE INDEX IF NOT EXISTS idx_published_at
     TABLESPACE pg_default;
 
 
+-- SEQUENCE: news_schema.news_id_seq
+
+-- DROP SEQUENCE IF EXISTS news_schema.news_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.news_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE news_schema.news_id_seq
+    OWNED BY news_schema.news.id;
+
+ALTER SEQUENCE news_schema.news_id_seq
+    OWNER TO postgres;
+
+
+-- Table: news_schema.news_keywords
+
+-- DROP TABLE IF EXISTS news_schema.news_keywords;
+
+CREATE TABLE IF NOT EXISTS news_schema.news_keywords
+(
+    id integer NOT NULL DEFAULT nextval('news_schema.news_keywords_id_seq'::regclass),
+    keyword_id integer,
+    news_id integer,
+    CONSTRAINT news_keywords_pkey PRIMARY KEY (id),
+    CONSTRAINT news_keywords_keyword_id_news_id_key UNIQUE (keyword_id, news_id),
+    CONSTRAINT news_keywords_keyword_id_fkey FOREIGN KEY (keyword_id)
+        REFERENCES news_schema.keywords (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT news_keywords_news_id_fkey FOREIGN KEY (news_id)
+        REFERENCES news_schema.news (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS news_schema.news_keywords
+    OWNER to postgres;
+-- Index: idx_news_keywords_keyword_news
+
+-- DROP INDEX IF EXISTS news_schema.idx_news_keywords_keyword_news;
+
+CREATE INDEX IF NOT EXISTS idx_news_keywords_keyword_news
+    ON news_schema.news_keywords USING btree
+    (keyword_id ASC NULLS LAST, news_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- SEQUENCE: news_schema.news_keywords_id_seq
+
+-- DROP SEQUENCE IF EXISTS news_schema.news_keywords_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.news_keywords_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE news_schema.news_keywords_id_seq
+    OWNED BY news_schema.news_keywords.id;
+
+ALTER SEQUENCE news_schema.news_keywords_id_seq
+    OWNER TO postgres;
+
 
 
 
@@ -223,7 +354,6 @@ CREATE INDEX IF NOT EXISTS idx_published_at
 CREATE TABLE IF NOT EXISTS news_schema.trendsresults
 (
     id integer NOT NULL DEFAULT nextval('news_schema.trendsresults_id_seq'::regclass),
-    article_keywords_id integer NOT NULL,
     has_data boolean NOT NULL,
     peak_interest integer,
     avg_interest numeric(5,2),
@@ -233,10 +363,10 @@ CREATE TABLE IF NOT EXISTS news_schema.trendsresults
     data_period_end date,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     geo text COLLATE pg_catalog."default" NOT NULL,
+    keyword_id integer NOT NULL,
     CONSTRAINT trendsresults_pkey PRIMARY KEY (id),
-    CONSTRAINT trendsresults_article_keywords_id_key UNIQUE (article_keywords_id),
-    CONSTRAINT trendsresults_article_keywords_id_fkey FOREIGN KEY (article_keywords_id)
-        REFERENCES news_schema.articlekeywords (id) MATCH SIMPLE
+    CONSTRAINT trendsresults_keyword_id_fkey FOREIGN KEY (keyword_id)
+        REFERENCES news_schema.keywords (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -254,3 +384,21 @@ CREATE INDEX IF NOT EXISTS idx_has_data
     (has_data ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
+
+
+-- SEQUENCE: news_schema.trendsresults_id_seq
+
+-- DROP SEQUENCE IF EXISTS news_schema.trendsresults_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.trendsresults_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE news_schema.trendsresults_id_seq
+    OWNED BY news_schema.trendsresults.id;
+
+ALTER SEQUENCE news_schema.trendsresults_id_seq
+    OWNER TO postgres;
