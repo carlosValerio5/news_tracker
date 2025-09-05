@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, UTC
 
-from jobs.scraper import (
+from jobs.bbc.scraper import (
     Scraper,
     parse_date,
     extract_section_from_url
@@ -93,8 +93,8 @@ def news_class_mock():
             self.summary = summary
     return News
 
-@patch('jobs.scraper.requests.get')
-@patch('jobs.scraper.News')
+@patch('jobs.bbc.scraper.requests.get')
+@patch('jobs.bbc.scraper.News')
 def test_scraper_process_feeds(mock_news, mock_requests, fake_navbar_html, fake_rss_html, news_class_mock, fake_section_html):
     # Mock navbar page
     mock_response_nav = MagicMock()
@@ -133,7 +133,7 @@ def test_scraper_process_feeds(mock_news, mock_requests, fake_navbar_html, fake_
     }
 
     # temporarily patch sleep to speed up tests
-    with patch('jobs.scraper.time.sleep'):
+    with patch('jobs.bbc.scraper.time.sleep'):
         scraper.process_feeds()
     news = scraper.get_news()
     assert isinstance(news, list)

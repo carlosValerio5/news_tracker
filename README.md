@@ -1,7 +1,7 @@
 # news_tracker
 
 ### Overview
-The project offers a solution for UK students who are studying in a PR direction. The students need to track the most relevant news and make a presentation based on the most important news. To automate the process of “trend tracking” the university wants to implement a tool that collects the top daily news in the United Kingdom. 
+The project offers a solution for UK students who are studying in a PR direction. The students need to track the most relevant news and make a presentation based on the most important news. To automate the process of “trend tracking” the university wants to implement a tool that collects the top daily news in the United Kingdom.<br>
 The students will monitor how the biggest UK television BBC is holding the TOP of searches in the web. 
 
 
@@ -17,7 +17,7 @@ The students will monitor how the biggest UK television BBC is holding the TOP o
 
 
 ### Solution
-The proposed system will aggregate news articles from the BBC and estimate their popularity using data from Google Trends.
+The proposed system will aggregate news articles from the BBC and estimate their popularity using data from Google Trends.<br>
 Users will receive a consolidated list featuring:
 - News headlines from the BBC main page,
 - Current trending topics from Google Trends,
@@ -26,10 +26,10 @@ Users will receive a consolidated list featuring:
 This solution aims to provide timely and relevant insights by combining authoritative news sources with dynamic trend analysis.
 
 ### Structure
-database: All modules related to data base.
-aws_handler: Business logic for AWS.
-api: Modules related to api and its logic.
-helpers: unviersal directory for reusable methods.
+database: All modules related to data base.<br>
+aws_handler: Business logic for AWS.<br>
+api: Modules related to api and its logic.<br>
+helpers: unviersal directory for reusable methods.<br>
 
 ### Work Flow
 <img width="975" height="486" alt="image" src="https://github.com/user-attachments/assets/3b7a2590-b1aa-4447-9a85-a123b59bc924" />

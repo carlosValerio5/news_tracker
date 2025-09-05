@@ -1,0 +1,38 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+beautifulsoup4 = "*"
+boto3 = "*"
+botocore = "*"
+bs4 = "*"
+certifi = "*"
+charset-normalizer = "*"
+colorama = "*"
+dotenv = "*"
+greenlet = "*"
+idna = "*"
+iniconfig = "*"
+jmespath = "*"
+lxml = "*"
+packaging = "*"
+pluggy = "*"
+psycopg2-binary = "*"
+pygments = "*"
+pytest = "*"
+python-dateutil = "*"
+python-dotenv = "*"
+requests = "*"
+s3transfer = "*"
+six = "*"
+soupsieve = "*"
+sqlalchemy = "*"
+typing-extensions = "*"
+urllib3 = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"
