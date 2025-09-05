@@ -105,7 +105,7 @@ class TrendsScraper:
                 session.add_all(self._daily_trends)
                 session.commit()
         except Exception as e:
-            raise e
+            raise Exception(e)
 
 
 def run_scraping_job_trends():
@@ -117,6 +117,7 @@ def run_scraping_job_trends():
             print(f"Connection to DB successful!")
         except Exception as e:
             print(f"Failed to make connection with DB: {e}")
+            raise Exception(e)
     
     scraper.poll_daily_trends()
     
@@ -124,6 +125,7 @@ def run_scraping_job_trends():
         scraper.store_daily_trends()
     except Exception as e:
         print(f'Unable to make transaction to DB: {e}')
+        raise Exception(e)
 
     print(f'Trends Fetched: {len(scraper.get_daily_trends())}')
 

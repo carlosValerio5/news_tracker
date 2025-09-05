@@ -21,7 +21,7 @@ RUN mkdir -p /python && \
 FROM public.ecr.aws/lambda/python:3.13-x86_64
 
 # Copy application code
-COPY jobs ./jobs
+COPY jobs/bbc ./jobs/bbc
 COPY aws_handler ./aws_handler
 COPY database ./database
 COPY jobs/bbc/lambda_handler.py ./lambda_handler.py
