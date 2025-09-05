@@ -1,9 +1,9 @@
-from jobs.bbc.scraper import start_scraping_job
+from jobs.bbc.scraper import run_scraping_job
 
 '''Main lambda handler for bbc scraper, this file will be located at root level in docker image'''
 def lambda_handler(event, context):
 
-    start_scraping_job()
+    run_scraping_job()
 
     return {
         "statusCode": 200,
