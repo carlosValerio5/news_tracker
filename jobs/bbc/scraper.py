@@ -14,32 +14,32 @@ class Scraper:
     '''Scraper object to extract bbc news'''
 
     def __init__(self):
-        self.__request_URL = "https://bbc.co.uk/news"
-        self.__navbar_links : list[str] = self.__extract_navbar_links()
-        self.__rss_feeds : list[str] = self.__extract_rss_feeds()
-        self.__news: list[News] = []
-        self.__headlines: list[str] = []
+        self._request_URL = "https://bbc.co.uk/news"
+        self._navbar_links : list[str] = self._extract_navbar_links()
+        self._rss_feeds : list[str] = self._extract_rss_feeds()
+        self._news: list[News] = []
+        self._headlines: list[str] = []
 
     def get_headlines(self) -> list:
-        return self.__headlines
+        return self._headlines
 
     def get_rss_feeds(self) -> list:
-        return self.__rss_feeds
+        return self._rss_feeds
 
     def get_navbar_links(self) -> list:
-        return self.__navbar_links
+        return self._navbar_links
 
     def get_news(self) -> list:
-        return self.__news
+        return self._news
 
-    def __extract_rss_feeds(self) -> list:
+    def _extract_rss_feeds(self) -> list:
 
-        if len(self.__navbar_links) == 0:
+        if len(self._navbar_links) == 0:
             return []
 
 
         rss_links = set() 
-        for url in self.__navbar_links:
+        for url in self._navbar_links:
             try:
                 response = requests.get(url)
             except requests.RequestException as e:
@@ -67,12 +67,12 @@ class Scraper:
 
         return list(rss_links)
 
-    def __extract_navbar_links(self) -> list:
+    def _extract_navbar_links(self) -> list:
         try:
-            response = requests.get(self.__request_URL, timeout=10)
+            response = requests.get(self._request_URL, timeout=10)
             response.raise_for_status()
         except requests.RequestException as e:
-            print(f"Failed to fetch {self.__request_URL}: {e}")
+            print(f"Failed to fetch {self._request_URL}: {e}")
             return []
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -87,16 +87,16 @@ class Scraper:
 
                 #filter hrefs
                 if href and not href.startswith('mailto:') and not href.startswith('javascript:'):
-                    full_url = urljoin(self.__request_URL, href)
+                    full_url = urljoin(self._request_URL, href)
                     links.add(full_url)
 
         return list(links)
 
     def process_feeds(self) -> list:
-        if len(self.__rss_feeds) == 0:
+        if len(self._rss_feeds) == 0:
             return
 
-        for feed_url in self.__rss_feeds:
+        for feed_url in self._rss_feeds:
             try:
                 response = requests.get(feed_url)
                 response.raise_for_status()
@@ -125,8 +125,8 @@ class Scraper:
                 summary = item.find('description').get_text().strip()
 
                 news = News(headline=headline, url=url, news_section=news_section, published_at=published_date, summary=summary)
-                self.__headlines.append(headline) 
-                self.__news.append(news)
+                self._headlines.append(headline) 
+                self._news.append(news)
 
                 
 
@@ -172,7 +172,7 @@ def extract_section_from_url(url: str) -> str:
     return parts[-2]
 
 
-def start_scraping_job():
+def run_scraping_job():
 
     #test db connection
     with Session(engine) as session:
@@ -207,4 +207,4 @@ def start_scraping_job():
 
 
 if __name__ == '__main__':
-    start_scraping_job()
+    run_scraping_job()
