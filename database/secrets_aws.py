@@ -29,5 +29,3 @@ def get_secret():
         raise e
 
     return get_secret_value_response['SecretString']
-
-    # Your code goes here.

@@ -1,134 +1,134 @@
 import pytest
-from unittest import mock
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
+from datetime import datetime
 import os
-import json
 
-import sys
+import jobs.trends.trends_scraper as scraper_mod  
 
-# Point Python to your source code
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from jobs.trends.trends_scraper import TrendsScraper, run_scraping_job_trends    # Fix 'your_module' to real path
-
-# Typical test values
-TRENDING_RESPONSE = {
-    'search_parameters' : {
-        'geo': 'US',
-    },
-    'trending_searches': [
-        {
-            'query': 'AI breakthrough',
-            'start_timestamp': 1680655257,
-            'search_volume': 100000,
-            'increase_percentage': 833,
-            'categories': [{'name': 'Technology'}]
-        },
-        {
-            'query': 'New movie',
-            'start_timestamp': 1680654257,
-            'search_volume': 50000,
-            'increase_percentage': 340,
-            'categories': [{'name': 'Entertainment'}]
-        }
-    ]
-}
+@pytest.fixture(autouse=True)
+def set_env_vars(monkeypatch):
+    """Set required environment variables for tests."""
+    monkeypatch.setenv("TRENDING_NOW_URL", "http://fakeapi.com/trending")
+    monkeypatch.setenv("SERP_API_KEY", "fake_api_key")
 
 
-@patch.dict(os.environ, {"TRENDING_NOW_URL": "https://fake.url", "SERP_API_KEY": "fake_key"})
-def test_trends_scraper_init_loads_env():
-    scraper = TrendsScraper()
-    assert scraper._BASE_URL == "https://fake.url"
-    assert scraper._API_KEY == "fake_key"
-    assert isinstance(scraper._daily_trends, list)
+def test_fetch_success(monkeypatch):
+    """Test TrendsAPI.fetch returns JSON on success."""
+    fake_json = {"status": "ok"}
+    mock_response = MagicMock()
+    mock_response.json.return_value = fake_json
+    mock_response.raise_for_status.return_value = None
+
+    monkeypatch.setattr(scraper_mod.requests, "get", lambda *a, **kw: mock_response)
+
+    api = scraper_mod.TrendsAPI("http://fake", "key")
+    result = api.fetch()
+
+    assert result == fake_json
 
 
-@patch("requests.get")
-@patch.dict(os.environ, {"TRENDING_NOW_URL": "https://fake.url", "SERP_API_KEY": "fake_key"})
-def test_make_request_success(mock_get):
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_get.return_value = mock_resp
-    scraper = TrendsScraper()
-    resp = scraper.make_request()
-    assert resp.status_code == 200
-    mock_get.assert_called_with(url="https://fake.url", params={"api_key": "fake_key"})
+def test_fetch_failure(monkeypatch, caplog):
+    """Test TrendsAPI.fetch logs exception and returns None."""
+    def fake_get(*args, **kwargs):
+        raise scraper_mod.requests.RequestException("Network error")
 
-@patch("requests.get", side_effect=Exception("Connection error"))
-@patch.dict(os.environ, {"TRENDING_NOW_URL": "https://fake.url", "SERP_API_KEY": "fake_key"})
-def test_make_request_exception(mock_get):
-    scraper = TrendsScraper()
-    resp = scraper.make_request()
-    assert resp is None
+    monkeypatch.setattr(scraper_mod.requests, "get", fake_get)
+
+    api = scraper_mod.TrendsAPI("http://fake", "key")
+    with caplog.at_level(scraper_mod.logging.ERROR):
+        result = api.fetch()
+
+    assert result is None
+    assert any("Error fetching trends" in rec.message for rec in caplog.records)
 
 
-@patch("requests.get")
-@patch("database.models.DailyTrends")   # Mock model to prevent real DB/ORM use
-@patch.dict(os.environ, {"TRENDING_NOW_URL": "https://fake.url", "SERP_API_KEY": "fake_key"})
-def test_poll_daily_trends_populates_and_ranks(mock_dailytrends, mock_requests_get):
-    # Prepare mock response
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.text = json.dumps(TRENDING_RESPONSE)
-    mock_requests_get.return_value = mock_resp
+def test_parse_payload_builds_rankings():
+    """Test parse_payload returns sorted trends with correct ranking."""
+    fake_payload = {
+        "search_parameters": {"geo": "US"},
+        "trending_searches": [
+            {
+                "query": "Trend A",
+                "start_timestamp": datetime(2025, 1, 1).timestamp(),
+                "search_volume": 100,
+                "increase_percentage": 50,
+                "categories": [{"name": "Category A"}],
+            },
+            {
+                "query": "Trend B",
+                "start_timestamp": datetime(2025, 1, 2).timestamp(),
+                "search_volume": 200,
+                "increase_percentage": 70,
+                "categories": [{"name": "Category B"}],
+            },
+        ],
+    }
 
-    # Configure DailyTrends to create dicts with attributes for test
-    def dt_side_effect(**kwargs):
-        obj = mock.Mock()
-        for k, v in kwargs.items():
-            setattr(obj, k, v)
-        return obj
-    mock_dailytrends.side_effect = dt_side_effect
+    svc = scraper_mod.TrendsScraperService(api=None, session_factory=None)
+    trends = svc.parse_payload(fake_payload)
 
-    # Run test
-    scraper = TrendsScraper()
-    scraper.poll_daily_trends()
-    trends = scraper.get_daily_trends()
-    assert len(trends) == len(TRENDING_RESPONSE['trending_searches'])
-
-    # Check sort
-    assert sorted([t.search_volume for t in trends], reverse=True) == [t.search_volume for t in trends]
-    # Check assigned ranking
-    assert sorted([t.ranking for t in trends]) == [1, 2]
-
-
-@patch("requests.get")
-@patch("database.models.DailyTrends")
-@patch.dict(os.environ, {"TRENDING_NOW_URL": "url", "SERP_API_KEY": "key"})
-def test_poll_daily_trends_handles_bad_json(mock_dailytrends, mock_requests_get):
-    # Response is not JSON
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.text = "BAD JSON"
-    mock_requests_get.return_value = mock_resp
-
-    scraper = TrendsScraper()
-    # Should not raise; should skip
-    scraper.poll_daily_trends()
-    assert scraper.get_daily_trends() == []
+    # Ranking sorted by search_volume desc
+    assert trends[0]["title"] == "Trend B"
+    assert trends[0]["ranking"] == 1
+    assert trends[1]["ranking"] == 2
+    assert trends[1]["title"] == "Trend A"
+    assert trends[0]["geo"] == "US"
 
 
-@patch("requests.get")
-@patch.dict(os.environ, {"TRENDING_NOW_URL": "url", "SERP_API_KEY": "key"})
-def test_poll_daily_trends_non200(mock_requests_get):
-    mock_resp = MagicMock()
-    mock_resp.status_code = 404
-    mock_requests_get.return_value = mock_resp
+def test_scrape_and_store_calls_store(monkeypatch):
+    """Test scrape_and_store fetches and stores trends."""
+    mock_api = MagicMock()
+    mock_api.fetch.return_value = {
+        "search_parameters": {"geo": "US"},
+        "trending_searches": [{
+            "query": "Trend X",
+            "start_timestamp": datetime(2025, 1, 1).timestamp(),
+            "search_volume": 150,
+            "increase_percentage": 20,
+            "categories": [{"name": "TestCat"}],
+        }],
+    }
 
-    scraper = TrendsScraper()
-    scraper.poll_daily_trends()
-    assert scraper.get_daily_trends() == []
+    mock_session = MagicMock()
+    session_factory = lambda: mock_session
+
+    svc = scraper_mod.TrendsScraperService(api=mock_api, session_factory=session_factory)
+
+    monkeypatch.setattr(svc, "store_trends", MagicMock())
+
+    num_trends = svc.scrape_and_store()
+
+    assert num_trends == 1
+    svc.store_trends.assert_called_once()
+    mock_api.fetch.assert_called_once()
 
 
-@patch("database.models.DailyTrends")
-def test_rank_daily_trends_sorting(mock_dailytrends):
-    scraper = TrendsScraper()
-    t1, t2 = mock.Mock(), mock.Mock()
-    t1.search_volume, t2.search_volume = 20, 100
-    scraper._daily_trends = [t1, t2]
-    scraper.rank_daily_trends()
-    # Volume should now be descending
-    assert scraper._daily_trends[0].search_volume == 100
-    assert scraper._daily_trends[0].ranking == 1
-    assert scraper._daily_trends[1].ranking == 2
+def test_store_trends_executes_insert(monkeypatch):
+    """Test store_trends executes insert with trends."""
+    trends_data = [{
+        "title": "Trend Y",
+        "start_timestamp": datetime(2025, 1, 1),
+        "search_volume": 50,
+        "increase_percentage": 10,
+        "category": "Cat",
+        "geo": "US",
+        "ranking": 1
+    }]
 
+    mock_session = MagicMock()
+    mock_session.__enter__.return_value = mock_session
+    mock_session.__exit__.return_value = None
+
+    session_factory = lambda: mock_session
+
+    svc = scraper_mod.TrendsScraperService(api=None, session_factory=session_factory)
+
+    # Patch insert to return a mock statement
+    mock_stmt = MagicMock()
+    monkeypatch.setattr(scraper_mod, "insert", lambda *a, **kw: mock_stmt)
+    mock_stmt.values.return_value = mock_stmt
+    mock_stmt.on_conflict_do_nothing.return_value = mock_stmt
+
+    svc.store_trends(trends_data)
+    mock_session.execute.assert_called_once_with(mock_stmt)
+    mock_session.commit.assert_called_once()
