@@ -17,6 +17,7 @@ COPY jobs/trends ./jobs/trends
 COPY aws_handler ./aws_handler
 COPY database ./database
 COPY jobs/trends/lambda_handler.py ./lambda_handler.py
+COPY logger ./logger
 
 COPY --from=builder /python /var/task
 

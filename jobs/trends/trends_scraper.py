@@ -9,9 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from database.models import DailyTrends
 from database.data_base import engine
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from logger.logging_config import logger
 
 
 class TrendsAPI:

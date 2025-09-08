@@ -31,6 +31,7 @@ soupsieve = "==2.8"
 sqlalchemy = "==2.0.43"
 typing-extensions = "==4.15.0"
 urllib3 = "==2.5.0"
+logger = "==1.4"
 
 [dev-packages]
 
