@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func
 from sqlalchemy.orm import declarative_base, relationship
 '''Moduule defining news model'''
 
@@ -15,13 +15,18 @@ class News(Base):
     news_section = Column(String, nullable=False)
     published_at = Column(DateTime, nullable=False)
     summary = Column(String)
-    keywords_id = Column(Integer, ForeignKey('articlekeywords.id'), nullable=True)
 
-    keywords = relationship('ArticleKeywords', back_populates='news')
 
-class ArticleKeywords(Base):
-    '''ArticleKeywords sqlalchemy model'''
-    __tablename__ = 'articlekeywords'
+class DailyTrends(Base):
+    '''Daily trends from google trends'''
 
+    __tablename__ = 'dailytrends'
     id = Column(Integer, primary_key=True)
-    news = relationship('News', back_populates='keywords')
+    title = Column(String, nullable=False)
+    ranking = Column(Integer)
+    geo = Column(String, nullable=False)
+    start_timestamp = Column(DateTime, nullable=False)
+    search_volume = Column(Integer, nullable = False)
+    increase_percentage = Column(Integer, nullable = False)
+    category = Column(String)
+    scraped_at = Column(DateTime, server_default=func.now())
