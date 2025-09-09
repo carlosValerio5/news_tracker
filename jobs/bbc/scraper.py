@@ -5,6 +5,8 @@ import time
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from dotenv import load_dotenv
+from os import getenv
 
 from database.models import News
 from database.data_base import engine
@@ -174,6 +176,14 @@ def extract_section_from_url(url: str) -> str:
 
 def run_scraping_job():
 
+    load_dotenv()
+
+    try:
+        queue_url = getenv('MAIN_QUEUE_URL')
+        fallback_queue_url = getenv('FALLBACK_QUEUE_URL')
+    except Exception:
+        raise ValueError('Could not load queues URL') 
+
     #test db connection
     with Session(engine) as session:
         try:
@@ -183,9 +193,10 @@ def run_scraping_job():
             print(f'\n\n----------------Connection Failed!:{e}')
             return
 
+
     #test sqs connection
     try:
-        aws_helper = AwsHelper()
+        aws_helper = AwsHelper(queue_url=queue_url, fallback_queue_url=fallback_queue_url)
         print('\n\n----------------SQS Connection Successful!')
     except Exception as e:
         print('\n\n----------------SQS Connection Failed!')
