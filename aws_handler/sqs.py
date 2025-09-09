@@ -7,14 +7,27 @@ class AwsHelper():
     '''Publisher class to send headlines to sqs'''
 
     def __init__(self):
-        self.__SQS = boto3.resource('sqs')
-        self.__QUEUE = self.__SQS.get_queue_by_name(QueueName='news_queue.fifo')
+
+        self._SQS = self._get_service()
+        try:
+            self._QUEUE = self._SQS.get_queue_by_name(QueueName='news_queue.fifo')
+        except Exception as e:
+            print(f'Failed to get queue: {e}')
+
+    '''Get SQS queue'''
+    def _get_service(self):
+        try:
+            sqs = boto3.resource('sqs')
+        except Exception as e:
+            print(f'Failed to retrieve service: {e}')
+
+        return sqs
 
 
     '''Send a single message'''
     def send_message(self, headline: str):
         try:
-            response = self.__QUEUE.send_message(MessageBody=headline, MessageGroupId='headlines')
+            response = self._QUEUE.send_message(MessageBody=headline, MessageGroupId='headlines')
             print(response['SequenceNumber'])
         except Exception as e:
             print(f"Message could not be sent: {e}")
@@ -31,13 +44,13 @@ class AwsHelper():
             
             if len(batch) == 10:
                 try:
-                    self.__QUEUE.send_messages(Entries=batch)
+                    self._QUEUE.send_messages(Entries=batch)
                 except Exception as e:
                     print(f"Batch {i//10} could not be sent: {e}")
                 batch = []
 
         if batch:
             try:
-                self.__QUEUE.send_messages(Entries=batch)
+                self._QUEUE.send_messages(Entries=batch)
             except Exception as e:
                 print(f"Batch {i//10} could not be sent: {e}")
