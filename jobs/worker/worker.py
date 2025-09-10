@@ -2,6 +2,7 @@ import logging
 from collections.abc import Callable
 from aws_handler.sqs import AwsHelper
 from sqlalchemy.dialects.postgresql import insert
+import spacy
 
 from database.models import ArticleKeywords
 from helpers.database_helper import DataBaseHelper 
