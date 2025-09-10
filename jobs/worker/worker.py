@@ -1,8 +1,8 @@
-import json
-import spacy
 import logging
+from collections.abc import Callable
 from aws_handler.sqs import AwsHelper
 from sqlalchemy.dialects.postgresql import insert
+import spacy
 
 from database.models import ArticleKeywords
 from helpers.database_helper import DataBaseHelper 
@@ -131,7 +131,7 @@ class GoogleTrendsService:
 class WorkerJob():
     '''Worker handling all operations for keyword popularity estimation'''
 
-    def __init__(self, api: GoogleTrendsService, processor_service: HeadlineProcessService, aws_handler: AwsHelper, session_factory: function):
+    def __init__(self, api: GoogleTrendsService, processor_service: HeadlineProcessService, aws_handler: AwsHelper, session_factory: Callable):
         '''
         Initialize the Worker Instance
 
@@ -152,7 +152,7 @@ class WorkerJob():
             messages = self._aws_handler.poll_messages()
         except Exception as e:
             logger.warning("Unable to poll for sqs messages.{e}")
-            return
+            raise 
 
         article_keywords = self.process_list_of_messages(messages)
 
@@ -162,9 +162,9 @@ class WorkerJob():
 
         try:
             result = DataBaseHelper.write_batch_of_objects(ArticleKeywords, self._session_factory, article_keywords, logger)
-        except Exception as e:
+        except Exception:
             logger.exception('Failed to write keywords.')
-            return
+            raise 
 
         ### Gtrends estimate popularity
 
@@ -188,21 +188,22 @@ class WorkerJob():
 
             if not headline or not headline.strip():
                 logger.warning('Failed to process headline, sent to fallback queue.')
-                self._aws_handler.send_to_fallback_queue([{'Body' : json.dumps(message)}])
+                self._aws_handler.send_message_to_fallback_queue(message=message)
                 continue
 
             try:
                 keywords = self._processor_service.extract_keywords(headline)
             except Exception:
                 logger.error('Failed to process headline, sending to fallback queue.')
-                self._aws_handler.send_to_fallback_queue([{'Body': json.dumps(message)}])
+                self._aws_handler.send_message_to_fallback_queue(message=message)
                 continue
             
             article_keywords.append(keywords)
 
             try:
-                self._aws_handler.delete_message(message.get('ReceiptHandle', ''))
+                self._aws_handler.delete_message_main_queue(message.get('ReceiptHandle', ''))
             except ValueError as e:
+                self._aws_handler.send_message_to_fallback_queue(message=message)
                 logger.exception(e)
         
         return article_keywords
