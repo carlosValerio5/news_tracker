@@ -10,7 +10,6 @@ The students will monitor how the biggest UK television BBC is holding the TOP o
 - The solution must get all news from all BBC sections at least 3 times a day.
 - Each new story's popularity must be estimated with Google Trends.
 - Google Trends' current trends must be stored separately for each day.
-- Headlines of BBC's main page must be stored separately as their "trend".
 - Every day, the solution must send an email with 3 lists for the previous day (between 00:00 and 01:00 am): 1. Google trends; 2. BBC trends; 3. BBC all news ordered by trend score (max 50).
 - The email should contain the percentage of matches between Google and BBC trends.
 - A Web UI is required only for Administration purposes: changing the target email, number of news items, and the email sending period.

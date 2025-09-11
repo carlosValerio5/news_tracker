@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date
+from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped
 '''Moduule defining news model'''
 
 meta = MetaData(schema='news_schema')
@@ -16,6 +16,9 @@ class News(Base):
     published_at = Column(DateTime, nullable=False)
     summary = Column(String)
 
+    keywords_id: Mapped[int] = mapped_column(ForeignKey('articlekeywords.id'))
+    keywords: Mapped['ArticleKeywords'] = relationship(back_populates='news_article')
+
 
 class DailyTrends(Base):
     '''Daily trends from google trends'''
@@ -30,3 +33,36 @@ class DailyTrends(Base):
     increase_percentage = Column(Integer, nullable = False)
     category = Column(String)
     scraped_at = Column(DateTime, server_default=func.now())
+
+class ArticleKeywords(Base):
+    '''Processed headlines separated into keywords'''
+
+    __tablename__ = 'articlekeywords'
+    id = Column(Integer, primary_key=True)
+    keyword_1 = Column(String, nullable=False)
+    keyword_2 = Column(String)
+    keyword_3 = Column(String)
+    composed_query = Column(String, nullable=False)
+    extraction_confidence = Column(Numeric(3, 2))
+    extracted_at = Column(DateTime, server_default=func.now())
+
+    news_article: Mapped['News'] = relationship(back_populates='keywords')
+    trends_result: Mapped['TrendsResults'] = relationship(back_populates='article_keyword')
+
+class TrendsResults(Base):
+    '''Popularity results for extracted keywords'''
+
+    __tablename__ = 'trendsresults'
+    id = Column(Integer, primary_key=True)
+    has_data = Column(Boolean, nullable=False)
+    peak_interest = Column(Integer)
+    avg_interest = Column(Numeric(5,2))
+    current_interest = Column(Integer, nullable=False)
+    data_collected_at = Column(DateTime, nullable=False)
+    data_period_start = Column(Date)
+    data_period_end = Column(Date)
+    updated_at = Column(DateTime, server_default=func.now())
+    geo = Column(String, nullable=False)
+
+    article_keyword_id: Mapped[int] = mapped_column(ForeignKey('articlekeywords.id')) 
+    article_keyword: Mapped['ArticleKeywords'] = relationship(back_populates="trends_result")
