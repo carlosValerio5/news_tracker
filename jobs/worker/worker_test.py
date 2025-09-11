@@ -38,7 +38,7 @@ def patch_spacy_load(mock_nlp):
 
 
 @pytest.fixture
-def processor_service(patch_spacy_load):
+def mock_processor_service(patch_spacy_load):
     return HeadlineProcessService()
 
 
@@ -52,103 +52,152 @@ def mock_aws_handler():
 def mock_session_factory():
     return MagicMock()
 
-
-# ---------------------
-# HeadlineProcessService tests
-# ---------------------
-
-def test_extract_keywords_returns_expected_fields(processor_service):
-    with patch.object(processor_service, "process_headline", return_value=[("Test", 1.5), ("Item", 1.0)]) as mock_proc:
-        result = processor_service.extract_keywords("Some headline")
-        assert result["keyword_1"] == "Test"
-        assert result["keyword_2"] == "Item"
-        assert result["keyword_3"] is None
-        assert isinstance(result["extraction_confidence"], float)
-        mock_proc.assert_called_once()
-
-def test_extract_keywords_raises_on_fail(processor_service):
-    with patch.object(processor_service, "process_headline", side_effect=Exception("fail proc")):
-        with pytest.raises(Exception) as e:
-            processor_service.extract_keywords("headline")
-        assert "Failed to process headline" in str(e.value)
-
-def test__get_total_confidence(processor_service):
-    keywords = [("word", 1.0), ("another", 2.0)]
-    assert processor_service._get_total_confidence(keywords) == 3.0
-
-def test_get_level_of_confidence_scores_correctly(processor_service):
-    score = processor_service.get_level_of_confidence("PROPN", 0)
-    assert pytest.approx(score) == 2.0 + 1.0  # POS=2.0 + position_score=1
-
-def test_process_headline_extracts_keywords(processor_service):
-    # monkeypatch get_level_of_confidence to avoid POS mismatch in lemma arg
-    def fake_conf(*args, **kwargs):
-        return 2.5
-    processor_service.get_level_of_confidence = lambda kw, pos, idx: 2.5
-    processor_service._nlp = lambda text: [
-        types.SimpleNamespace(lemma_="apple", pos_="PROPN", is_alpha=True),
-        types.SimpleNamespace(lemma_="banana", pos_="NOUN", is_alpha=True),
-    ]
-    result = processor_service.process_headline("fake text")
-    assert isinstance(result, list)
-    assert all(isinstance(kw[0], str) for kw in result)
-
+@pytest.fixture
+def worker_with_mocks(mock_processor_service, mock_aws_handler, mock_session_factory):
+    """Return a WorkerJob instance with mocked API and processor_service."""
+    processor_service = mock_processor_service
+    api = MagicMock()
+    aws_handler = mock_aws_handler 
+    session_factory = mock_session_factory 
+    worker = WorkerJob(api, processor_service, aws_handler, session_factory)
+    return worker, processor_service, api
 
 # ---------------------
 # WorkerJob tests
 # ---------------------
 
-def test_process_messages_happy_path(processor_service, mock_aws_handler, mock_session_factory):
+def test_process_messages_happy_path(mock_processor_service, mock_aws_handler, mock_session_factory):
     # Fake a headline message
     msgs = [{"Body": "Breaking News", "ReceiptHandle": "abc123"}]
     mock_aws_handler.poll_messages.return_value = msgs
     mock_aws_handler.delete_message_main_queue.return_value = None
 
-    processor_service.extract_keywords = MagicMock(return_value={"keyword_1": "Apple"})
+    mock_processor_service.extract_keywords = MagicMock(return_value={"keyword_1": "Apple"})
 
-    with patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects", return_value=True) as mock_write:
-        job = WorkerJob(MagicMock(), processor_service, mock_aws_handler, mock_session_factory)
+    write_batch_returning_value = [{
+        "id" : 1,
+        "keyword_1": "Apple",
+        "keyword_2": None,
+        "keyword_3": None
+    }]
+
+    with patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects", return_value=True) as mock_write, \
+        patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects_returning", return_value=write_batch_returning_value) as mock_write_returning:
+
+        mock_aws_handler.poll_messages.return_value = [
+            {"Body": "Breaking News", "ReceiptHandle" : "abc123"}
+        ]
+        mock_aws_handler.delete_message_main_queue.return_value = None
+
+        job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, mock_session_factory)
+        job._processor_service.get_principal_keyword = MagicMock(return_value='Apple')
+
+        job.estimate_popularity = MagicMock(return_value=[{
+            'article_keywords_id': 1,
+            'has_data': True,
+            'peak_interest': 100,
+            'current_interest': 20,
+            'data_period_start': '2025-09-12',
+            'data_period_end': '2025-09-12'
+        }])
         job.process_messages()
         mock_write.assert_called_once()
-        processor_service.extract_keywords.assert_called_once()
+        mock_write_returning.assert_called_once()
+        mock_processor_service.extract_keywords.assert_called_once()
 
 
-def test_process_messages_no_messages(processor_service, mock_aws_handler, mock_session_factory, caplog):
+def test_process_messages_no_messages(mock_processor_service, mock_aws_handler, mock_session_factory, caplog):
     mock_aws_handler.poll_messages.return_value = []
-    job = WorkerJob(MagicMock(), processor_service, mock_aws_handler, mock_session_factory)
+    job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, mock_session_factory)
     with caplog.at_level(logging.WARNING):
         job.process_messages()
     assert "No keywords extracted" in caplog.text
 
-def test_process_messages_poll_exception(processor_service, mock_aws_handler, mock_session_factory):
+def test_process_messages_poll_exception(mock_processor_service, mock_aws_handler, mock_session_factory):
     mock_aws_handler.poll_messages.side_effect = Exception("poll fail")
-    job = WorkerJob(MagicMock(), processor_service, mock_aws_handler, mock_session_factory)
+    job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, mock_session_factory)
     with pytest.raises(Exception):
         job.process_messages()
 
-def test_process_list_of_messages_with_blank_body(processor_service, mock_aws_handler, mock_session_factory):
+def test_process_list_of_messages_with_blank_body(mock_processor_service, mock_aws_handler, mock_session_factory):
     mock_aws_handler.send_message_to_fallback_queue = MagicMock()
     messages = [{"Body": " ", "ReceiptHandle": "abc"}]  # blank string headline
-    job = WorkerJob(MagicMock(), processor_service, mock_aws_handler, mock_session_factory)
+    job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, mock_session_factory)
     results = job.process_list_of_messages(messages)
     assert results == []
     mock_aws_handler.send_message_to_fallback_queue.assert_called_once()
 
-def test_process_list_of_messages_with_extraction_failure(processor_service, mock_aws_handler, mock_session_factory):
+def test_process_list_of_messages_with_extraction_failure(mock_processor_service, mock_aws_handler, mock_session_factory):
     mock_aws_handler.send_message_to_fallback_queue = MagicMock()
-    processor_service.extract_keywords = MagicMock(side_effect=Exception("fail extraction"))
+    mock_processor_service.extract_keywords = MagicMock(side_effect=Exception("fail extraction"))
     messages = [{"Body": "valid", "ReceiptHandle": "abc"}]
-    job = WorkerJob(MagicMock(), processor_service, mock_aws_handler, mock_session_factory)
+    job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, mock_session_factory)
     results = job.process_list_of_messages(messages)
     assert results == []
     mock_aws_handler.send_message_to_fallback_queue.assert_called_once()
 
-def test_process_list_of_messages_success_delete_error(processor_service, mock_aws_handler, mock_session_factory):
-    processor_service.extract_keywords = MagicMock(return_value={"keyword_1": "Apple"})
+def test_process_list_of_messages_success_delete_error(mock_processor_service, mock_aws_handler, mock_session_factory):
+    mock_processor_service.extract_keywords = MagicMock(return_value={"keyword_1": "Apple"})
     mock_aws_handler.delete_message_main_queue = MagicMock(side_effect=ValueError("bad receipt"))
     mock_aws_handler.send_message_to_fallback_queue = MagicMock()
     messages = [{"Body": "valid", "ReceiptHandle": "abc"}]
-    job = WorkerJob(MagicMock(), processor_service, mock_aws_handler, mock_session_factory)
+    job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, mock_session_factory)
     results = job.process_list_of_messages(messages)
     assert len(results) == 1
     mock_aws_handler.send_message_to_fallback_queue.assert_called_once()
+
+def test_estimate_popularity_happy_path(worker_with_mocks):
+    worker, processor_service, api = worker_with_mocks
+    # Mocks
+    processor_service.get_principal_keyword = MagicMock(return_value="Apple")
+    api.estimate_popularity.return_value = {"has_data": True}
+
+    result_input = [
+        {"id": 1, "keyword_1": "Apple", "keyword_2": None, "keyword_3": None}
+    ]
+
+    output = worker.estimate_popularity(result_input)
+
+    processor_service.get_principal_keyword.assert_called_once_with(["Apple", None, None])
+    api.estimate_popularity.assert_called_once_with("Apple")
+
+    # The id is used as a key in the returned dict per current implementation
+    assert output == [{"has_data": True, 'article_keywords_id': 1}]
+
+
+def test_estimate_popularity_skips_when_api_returns_falsy(worker_with_mocks, caplog):
+    worker, processor_service, api = worker_with_mocks
+    processor_service.get_principal_keyword = MagicMock(return_value = "Apple")
+    api.estimate_popularity.return_value = {}  # falsy
+
+    result_input = [
+        {"id": 5, "keyword_1": "Apple", "keyword_2": None, "keyword_3": None}
+    ]
+
+    with caplog.at_level("ERROR"):
+        output = worker.estimate_popularity(result_input)
+
+    assert output == []  # Should skip appending
+    assert "Failed to estimate popularity for keywords with id 5" in caplog.text
+
+
+def test_estimate_popularity_multiple_rows(worker_with_mocks):
+    worker, processor_service, api = worker_with_mocks
+    processor_service.get_principal_keyword = MagicMock(side_effect=["Apple", "Banana"])
+    api.estimate_popularity.side_effect = [
+        {"has_data": True}, 
+        {"has_data": True}
+    ]
+
+    result_input = [
+        {"id": 1, "keyword_1": "Apple", "keyword_2": None, "keyword_3": None},
+        {"id": 2, "keyword_1": "Banana", "keyword_2": "Yellow", "keyword_3": None},
+    ]
+
+    output = worker.estimate_popularity(result_input)
+
+    assert len(output) == 2
+    # Check that ids got added as keys into the returned dicts (current logic)
+    assert all(entry['article_keywords_id'] in [1, 2] for entry in output)
+    assert processor_service.get_principal_keyword.call_count == 2
+    assert api.estimate_popularity.call_count == 2

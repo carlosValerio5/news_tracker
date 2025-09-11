@@ -9,6 +9,12 @@ class HeadlineProcessService:
         "ADJ": 1.0
     }
 
+    LABEL_WEIGHTS = {
+        "PERSON": 2.0,
+        "GPE": 1.5,
+        "ORG": 1.0
+    }
+
 
     def __init__(self, model="en_core_web_sm"):
         '''
@@ -39,7 +45,7 @@ class HeadlineProcessService:
             'keyword_1' : keywords[0][0] if len(keywords) > 0 else None,
             'keyword_2' : keywords[1][0] if len(keywords) > 1 else None,
             'keyword_3' : keywords[2][0] if len(keywords) > 2 else None,
-            'composed_query' : "".join(kw for kw, _ in keywords),
+            'composed_query' : " ".join(kw for kw, _ in keywords),
             'extraction_confidence' : extraction_confidence 
         }
         
@@ -85,9 +91,34 @@ class HeadlineProcessService:
                 kw = token.lemma_.lower()
                 if kw not in seen:
                     seen.add(kw)
-                    confidence = self.get_level_of_confidence(kw, token.pos_, idx)
+                    confidence = self.get_level_of_confidence(token.pos_, idx)
                     keywords.append((kw, confidence))
                 
         keywords.sort(key=lambda x: x[1], reverse=True)
 
         return [(kw.capitalize(), score) for kw, score in keywords[:max_keywords]]
+
+    def get_principal_keyword(self, preprocessed_keywords: list) -> list:
+        '''
+        Returns a single keyword, representing the most important keyword from a set of keywords
+
+        :param preprocessed_keywords: List of keywords to process. 
+        '''
+
+        keyword_string = ' '.join(preprocessed_keywords).strip()
+        doc = self._nlp(keyword_string)
+
+        max_score = -1
+        keyword = str()
+        for idx, ent in enumerate(doc.ents, start=1):
+            if ent.label_ in self.LABEL_WEIGHTS.keys():
+
+                label_score = self.LABEL_WEIGHTS[ent.label_]
+                position_score = 1/idx # earlier keywords get higher scores
+                score = label_score + position_score
+
+                if score > max_score:
+                    max_score = score
+                    keyword = ent.text
+            
+        return keyword

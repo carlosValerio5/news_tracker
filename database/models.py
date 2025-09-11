@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date
-from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index
+from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped 
 '''Moduule defining news model'''
 
 meta = MetaData(schema='news_schema')
@@ -42,9 +42,17 @@ class ArticleKeywords(Base):
     keyword_1 = Column(String, nullable=False)
     keyword_2 = Column(String)
     keyword_3 = Column(String)
-    composed_query = Column(String, nullable=False)
     extraction_confidence = Column(Numeric(3, 2))
     extracted_at = Column(DateTime, server_default=func.now())
+    composed_query = Column(String, Computed(
+        "lower(coalesce(keyword_1, '')) || '|' || lower(coalesce(keyword_2, '')) || '|' || lower(coalesce(keyword_3, ''))", persisted=True
+        ))
+
+    Index (
+        'uq_composed_query',
+        'composed_query',
+        unique=True
+    )
 
     news_article: Mapped['News'] = relationship(back_populates='keywords')
     trends_result: Mapped['TrendsResults'] = relationship(back_populates='article_keyword')

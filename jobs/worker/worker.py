@@ -4,7 +4,7 @@ from aws_handler.sqs import AwsHelper
 from sqlalchemy.dialects.postgresql import insert
 import spacy
 
-from database.models import ArticleKeywords
+from database.models import ArticleKeywords, TrendsResults
 from helpers.database_helper import DataBaseHelper 
 from trends_service import GoogleTrendsService
 from nlp_service import HeadlineProcessService
@@ -46,20 +46,60 @@ class WorkerJob():
             return
 
         try:
-            result = DataBaseHelper.write_batch_of_objects(ArticleKeywords, self._session_factory, article_keywords, logger)
+            result = DataBaseHelper.write_batch_of_objects_returning(
+                ArticleKeywords, 
+                self._session_factory, 
+                article_keywords, 
+                logger, 
+                return_columns=[
+                    ArticleKeywords.id,
+                    ArticleKeywords.keyword_1,
+                    ArticleKeywords.keyword_2,
+                    ArticleKeywords.keyword_3
+                ],
+                conflict_index=['composed_query']
+                )
         except Exception:
             logger.exception('Failed to write keywords.')
             raise 
 
         ### Gtrends estimate popularity
+        trends_results = self.estimate_popularity(result)
 
+        if not trends_results:
+            logger.warning("No trends results extracted at WorkerJob.process_messages.")
+            return
 
-    def estimate_popularity(self, article_keywords):
-        '''Estimates the popularity of the extracted headlines'''
+        try:
+            result = DataBaseHelper.write_batch_of_objects(TrendsResults, self._session_factory, trends_results, logger)
+        except Exception:
+            logger.exception('Failed to write trends results.')
+            raise
+
+    def estimate_popularity(self, result: list[dict]) -> list[dict]:
+        '''
+        Estimates the popularity of the extracted headlines
+        
+        :param result: Result of inserted rows in ArticleKeywords
+        '''
 
         trends_results = []
-        for news_article in article_keywords:
-            current, average, peak = self._api.estimate_popularity(news_article)
+        for row in result:
+            id = row.get('id')
+            keywords = [row.get('keyword_1', ''), row.get('keyword_2', ''), row.get('keyword_3', '')]
+            
+            principal_keyword = self._processor_service.get_principal_keyword(keywords)
+            result_trends = self._api.estimate_popularity(principal_keyword)
+
+            if not result_trends:
+                logger.error('Failed to estimate popularity for keywords with id %d', id)
+                continue
+
+            result_trends['article_keywords_id'] = id
+
+            trends_results.append(result_trends)
+
+        return trends_results
 
     def process_list_of_messages(self, messages: list) -> list:
         '''
@@ -92,12 +132,3 @@ class WorkerJob():
                 logger.exception(e)
         
         return article_keywords
-
-    def get_messages(self):
-        pass
-
-    def delete_messages(self):
-        pass
-
-    def rate_headlines(self):
-        pass
