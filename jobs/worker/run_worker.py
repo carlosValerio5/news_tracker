@@ -1,15 +1,14 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
-import logging
+from logger.logging_config import logger
 
-from worker import WorkerJob
-from trends_service import GoogleTrendsService
-from nlp_service import HeadlineProcessService
+from jobs.worker.worker import WorkerJob
+from jobs.worker.trends_service import GoogleTrendsService
+from jobs.worker.nlp_service import HeadlineProcessService
 from aws_handler.sqs import AwsHelper
 from database.data_base import engine
 
-logger = logging.getLogger(__name__)
 
 def run_worker():
     load_dotenv()
@@ -30,3 +29,8 @@ def run_worker():
             worker.process_messages()
         except Exception:
             logger.exception('Failed to process message.') # If processing fails next set of messages is processed
+
+
+
+if __name__ == "__main__":
+    run_worker()

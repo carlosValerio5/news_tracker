@@ -132,7 +132,7 @@ class AwsHelper:
             raise ValueError('Wrong format for receipt handle.')
 
         try:
-            self._QUEUE.delete_message(
+            self._SQS.delete_message(
                 QueueUrl=self.queue_url,
                 ReceiptHandle=receipt_handle
             )

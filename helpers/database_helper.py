@@ -59,9 +59,12 @@ class DataBaseHelper:
                 result = session.execute(stmt)
                 session.commit()
 
-                logger.info(f'Keywords saved succesfully, keyword count: {result.rowcount}')
                 if return_columns:
-                    return [dict(row) for row in result]
+                    rows = list(result)
+                    logger.info(f'Keywords saved successfully, keyword count: {len(rows)}')
+                    return [dict(row._mapping) for row in rows]
+
+                logger.info(f'Keywords saved succesfully, keyword count: {result.rowcount}')
                 return result
         except Exception as e:
             logger.error(f'Failed to commit objects to database.\n{e}')

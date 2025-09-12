@@ -2,12 +2,11 @@ import logging
 from collections.abc import Callable
 from aws_handler.sqs import AwsHelper
 from sqlalchemy.dialects.postgresql import insert
-import spacy
 
 from database.models import ArticleKeywords, TrendsResults
 from helpers.database_helper import DataBaseHelper 
-from trends_service import GoogleTrendsService
-from nlp_service import HeadlineProcessService
+from jobs.worker.trends_service import GoogleTrendsService
+from jobs.worker.nlp_service import HeadlineProcessService
 
 '''Worker module, bussiness logic for headline processing'''
 
@@ -40,6 +39,13 @@ class WorkerJob():
             raise 
 
         article_keywords = self.process_list_of_messages(messages)
+        logger.debug(f"Attempting to insert ArticleKeywords: {article_keywords}")
+
+        # Validate keyword_1 exists
+        article_keywords = [
+            ak for ak in article_keywords
+            if ak.get("keyword_1")
+        ]
 
         if not article_keywords:
             logger.warning("No keywords extracted at WorkerJob.process_messages.")
@@ -87,8 +93,16 @@ class WorkerJob():
         for row in result:
             id = row.get('id')
             keywords = [row.get('keyword_1', ''), row.get('keyword_2', ''), row.get('keyword_3', '')]
+
+            if not keywords:
+                logger.warning("Empty keyword list. (worker.estimate_popularity)")
+                continue
             
-            principal_keyword = self._processor_service.get_principal_keyword(keywords)
+            try:
+                principal_keyword = self._processor_service.get_principal_keyword(keywords)
+            except:
+                logger.exception('Failed to extract principal keywords.')
+
             result_trends = self._api.estimate_popularity(principal_keyword)
 
             if not result_trends:

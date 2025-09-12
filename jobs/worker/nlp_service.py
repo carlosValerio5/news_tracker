@@ -45,9 +45,11 @@ class HeadlineProcessService:
             'keyword_1' : keywords[0][0] if len(keywords) > 0 else None,
             'keyword_2' : keywords[1][0] if len(keywords) > 1 else None,
             'keyword_3' : keywords[2][0] if len(keywords) > 2 else None,
-            'composed_query' : " ".join(kw for kw, _ in keywords),
             'extraction_confidence' : extraction_confidence 
         }
+
+        if not article_keyword.get('keyword_1'):
+            raise ValueError('Unable to extract keyword_1, from %s', headline)
         
         return article_keyword
 
@@ -107,6 +109,9 @@ class HeadlineProcessService:
 
         keyword_string = ' '.join(preprocessed_keywords).strip()
         doc = self._nlp(keyword_string)
+        
+        if not doc:
+            raise Exception('Failed to process keywords list.')
 
         max_score = -1
         keyword = str()
@@ -120,5 +125,8 @@ class HeadlineProcessService:
                 if score > max_score:
                     max_score = score
                     keyword = ent.text
+
+        if not keyword and preprocessed_keywords:
+            keyword = preprocessed_keywords[0]
             
         return keyword
