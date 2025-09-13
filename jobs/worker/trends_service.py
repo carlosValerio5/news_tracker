@@ -148,7 +148,7 @@ class GoogleTrendsService:
             start_date, end_date = self.get_date_interval(date)
 
             values = []
-            if current_date > start_date and current_date < end_date:
+            if current_date >= start_date and current_date <= end_date:
                 values = entry.get('values')
 
                 if not values:

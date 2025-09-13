@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from datetime import date
+from datetime import date, timedelta
 from requests import HTTPError
 
 from jobs.worker.worker import GoogleTrendsService  
@@ -85,8 +85,8 @@ def test_get_peak_interest_success(service):
     payload = {
         "interest_over_time": {
             "timeline_data": [
-                {"values": {"extracted_value": 50}},
-                {"values": {"extracted_value": 100}},
+                {"values": [{"extracted_value": 50}]},
+                {"values": [{"extracted_value": 100}]},
             ]
         }
     }
@@ -132,11 +132,13 @@ def test_get_peak_interest_entry_missing_values_logs(service, caplog):
 def test_get_current_interest_success(service):
     # Pick a date range that includes today
     today = date.today()
-    date_str = f"{today.strftime('%b %d')} – {today.strftime('%b %d')}, {today.year}"
+    yesterday = date.today() - timedelta(days=1)
+    date_str = f"{yesterday.strftime('%b %d')} – {today.strftime('%b %d')}, {today.year}"
     payload = {
+        "search_parameters" : {"q" : "test"},
         "interest_over_time": {
             "timeline_data": [
-                {"date": date_str, "values": {"extracted_value": 55}}
+                {"date": date_str, "values": [{"query": "test", "extracted_value": 55}]}
             ]
         }
     }
@@ -162,9 +164,10 @@ def test_get_current_interest_no_timeline_data(service, caplog):
 
 def test_get_current_interest_no_date_match(service, caplog):
     payload = {
+        "search_parameters": {"q": "Test"},
         "interest_over_time": {
             "timeline_data": [
-                {"date": "Feb 1 – Feb 7, 2025", "values": {"extracted_value": 44}}
+                {"date": "Feb 1 – Feb 7, 2025", "values": [{"extracted_value": 44}]}
             ]
         }
     }
@@ -177,6 +180,7 @@ def test_get_current_interest_no_date_match(service, caplog):
 def test_get_current_interest_entry_missing_values(service, caplog):
     today = date.today()
     payload = {
+        "search_parameters": {"q": "Test"},
         "interest_over_time": {
             "timeline_data": [
                 {"date": "dummy", "values": None}

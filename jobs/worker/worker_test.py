@@ -32,7 +32,7 @@ def mock_nlp():
 
 @pytest.fixture
 def patch_spacy_load(mock_nlp):
-    with patch("jobs.worker.worker.spacy.load") as mock_load:
+    with patch("jobs.worker.nlp_service.spacy.load") as mock_load:
         mock_load.return_value = mock_nlp
         yield
 

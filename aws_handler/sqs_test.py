@@ -132,7 +132,7 @@ def test_send_batch_exception_prints_error(aws_helper, mock_queue, capsys):
 def test_delete_message_success(aws_helper):
     aws_helper._SQS = MagicMock()
     aws_helper.delete_message_main_queue("abc123")
-    aws_helper._QUEUE.delete_message.assert_called_once()
+    aws_helper._SQS.delete_message.assert_called_once()
 
 
 def test_delete_message_invalid_receipt(aws_helper):

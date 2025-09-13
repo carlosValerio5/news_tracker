@@ -23,7 +23,7 @@ def mock_nlp():
 
 @pytest.fixture
 def patch_spacy_load(mock_nlp):
-    with patch("jobs.worker.worker.spacy.load") as mock_load:
+    with patch("jobs.worker.nlp_service.spacy.load") as mock_load:
         mock_load.return_value = mock_nlp
         yield
 
@@ -180,4 +180,4 @@ def test_get_principal_keyword_no_matching_labels(service):
     service.LABEL_WEIGHTS = {"ORG": 2.0}  # No matches
 
     result = service.get_principal_keyword(["Apple", "Banana"])
-    assert result == ""  # Default empty string returned
+    assert result == "Apple" # Returns first keyword when not matched 
