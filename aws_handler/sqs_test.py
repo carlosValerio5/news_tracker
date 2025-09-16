@@ -42,7 +42,7 @@ def test_send_message_success_fails_without_url(patch_boto3_resource, mock_queue
     with pytest.raises(TypeError):
         AwsHelper()
 
-def test_send_message_success(aws_helper):
+def test_send_message_success(aws_helper, mock_queue):
     aws = aws_helper
     aws.send_message("Breaking news: AI beats chess grandmaster.")
     mock_queue.send_message.assert_called_once_with(
@@ -50,19 +50,19 @@ def test_send_message_success(aws_helper):
         MessageGroupId='headlines'
     )
 
-def test_send_message_exception(aws_helper, capsys):
+def test_send_message_exception(aws_helper, capsys, mock_queue):
     mock_queue.send_message.side_effect = Exception("SQS error")
     aws = aws_helper
     aws.send_message("Will not send")
     captured = capsys.readouterr()
     assert "Message could not be sent: SQS error" in captured.out
 
-def test_send_batch_single_batch(aws_helper, mock_queue):
+def test_send_batch_single_batch(aws_helper):
     aws = aws_helper
     headlines = [f"headline {i}" for i in range(10)]
     aws.send_batch(headlines)
-    assert mock_queue.send_messages.call_count == 1
-    args, kwargs = mock_queue.send_messages.call_args
+    assert aws._SQS.send_message_batch.call_count == 1
+    args, kwargs = aws._SQS.send_message_batch.call_args
     entries = kwargs['Entries']
     assert len(entries) == 10
     for i, entry in enumerate(entries):
@@ -70,60 +70,18 @@ def test_send_batch_single_batch(aws_helper, mock_queue):
         assert entry['MessageGroupId'] == 'headlines'
         assert entry['MessageBody'] == f"headline {i}"
 
-def test_send_batch_multiple_batches(aws_helper, mock_queue):
+def test_send_batch_multiple_batches(aws_helper):
     aws = aws_helper
     headlines = [f"headline {i}" for i in range(25)]
     aws.send_batch(headlines)
     # Should be 3 batches: 10, 10, and 5
-    assert mock_queue.send_messages.call_count == 3
-    batch_sizes = [call.kwargs['Entries'] for call in mock_queue.send_messages.call_args_list]
+    assert aws._SQS.send_message_batch.call_count == 3
+    batch_sizes = [call.kwargs['Entries'] for call in aws._SQS.send_message_batch.call_args_list]
     assert [len(b) for b in batch_sizes] == [10, 10, 5]
 
-def test_send_batch_exception_prints_error(aws_helper, mock_queue, capsys):
+def test_send_batch_exception_prints_error(aws_helper, capsys):
     aws = aws_helper
-    mock_queue.send_messages.side_effect = [Exception("Batch error"), None]
-    headlines = [f"headline {i}" for i in range(11)]
-    aws.send_batch(headlines)
-    captured = capsys.readouterr()
-    assert "Batch 0 could not be sent: Batch error" in captured.out
-
-def test_send_message_success(aws_helper, mock_queue):
-    aws = aws_helper
-    aws.send_message("Breaking news: AI beats chess grandmaster.")
-    mock_queue.send_message.assert_called_once_with(MessageBody="Breaking news: AI beats chess grandmaster.", MessageGroupId='headlines')
-
-def test_send_message_exception(aws_helper, mock_queue, capsys):
-    mock_queue.send_message.side_effect = Exception("SQS error")
-    aws = aws_helper
-    aws.send_message("Will not send")
-    captured = capsys.readouterr()
-    assert "Message could not be sent: SQS error" in captured.out
-
-def test_send_batch_single_batch(aws_helper, mock_queue):
-    aws = aws_helper
-    headlines = [f"headline {i}" for i in range(10)]
-    aws.send_batch(headlines)
-    assert mock_queue.send_messages.call_count == 1
-    args, kwargs = mock_queue.send_messages.call_args
-    entries = kwargs['Entries']
-    assert len(entries) == 10
-    for i, entry in enumerate(entries):
-        assert entry['Id'] == str(i)
-        assert entry['MessageGroupId'] == 'headlines'
-        assert entry['MessageBody'] == f"headline {i}"
-
-def test_send_batch_multiple_batches(aws_helper, mock_queue):
-    aws = aws_helper
-    headlines = [f"headline {i}" for i in range(25)]
-    aws.send_batch(headlines)
-    # Should be 3 batches: 10, 10, and 5
-    assert mock_queue.send_messages.call_count == 3
-    batch_sizes = [call.kwargs['Entries'] for call in mock_queue.send_messages.call_args_list]
-    assert [len(b) for b in batch_sizes] == [10, 10, 5]
-
-def test_send_batch_exception_prints_error(aws_helper, mock_queue, capsys):
-    aws = aws_helper
-    mock_queue.send_messages.side_effect = [Exception("Batch error"), None]
+    aws._SQS.send_message_batch.side_effect = [Exception("Batch error"), None]
     headlines = [f"headline {i}" for i in range(11)]
     aws.send_batch(headlines)
     captured = capsys.readouterr()
@@ -170,10 +128,10 @@ def test_send_to_fallback_no_url(aws_helper, capsys):
 def test_send_to_fallback_success(aws_helper):
     msgs = [{"Body": "msg1", "ReceiptHandle": "r1"}]
     aws_helper.send_messages_to_fallback_queue(msgs)
-    aws_helper._FALLBACK_QUEUE.send_messages.assert_called_once()
+    aws_helper._SQS.send_message_batch.assert_called_once()
     aws_helper._SQS.delete_message_batch.assert_called_once()  
 
 def test_send_to_fallback_batch_handling(aws_helper):
     msgs = [{"Body": f"msg{i}", "ReceiptHandle": "r1"} for i in range(15)]
     aws_helper.send_messages_to_fallback_queue(msgs)
-    assert aws_helper._FALLBACK_QUEUE.send_messages.call_count == 2
+    assert aws_helper._SQS.send_message_batch.call_count == 2

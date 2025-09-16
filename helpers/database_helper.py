@@ -50,7 +50,7 @@ class DataBaseHelper:
                     dummy_col = list(object_type.__table__.primary_key.columns)[0].name
                     stmt = stmt.on_conflict_do_update(
                         index_elements=conflict_index,
-                        set_={dummy_col: getattr(insert(object_type).excluded, dummy_col)} # does not update
+                        set_={dummy_col: getattr(object_type.__table__.c, dummy_col)} # does not update
                     )
 
                 if return_columns:

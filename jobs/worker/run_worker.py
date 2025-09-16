@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from logger.logging_config import logger
+from botocore.exceptions import NoCredentialsError
 
 from jobs.worker.worker import WorkerJob
 from jobs.worker.trends_service import GoogleTrendsService
@@ -27,6 +28,9 @@ def run_worker():
     while True:
         try:
             worker.process_messages()
+        except NoCredentialsError:
+            logger.exception("Failed to get aws credentials.")
+            return
         except Exception:
             logger.exception('Failed to process message.') # If processing fails next set of messages is processed
 
