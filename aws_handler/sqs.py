@@ -68,33 +68,52 @@ class AwsHelper:
         except Exception as e:
             print(f"Message could not be sent: {e}")
 
-    def send_batch(self, headlines: list):
+    def send_batch(self, messages: list, message_group_id: str | None = None, transform_function = None, queue_url: str | None = None):
         '''
         Send messages in batches of 10\
            
         :param headline: list containing all headlines
+        :param message_group_id: Parameter required for FIFO queues, default None.
+        :param transform_function: Function to transform payload into message format.
+        :param queue_url: URL for target queue.
         '''
+        if not messages:
+            return
+    
+        max_batch_size = 10
+        queue_url = queue_url or self.queue_url
+        
+        if transform_function is None:
+            transform_function = lambda item: str(item)
 
         batch= []
-        for i in range(len(headlines)):
-            item = {}
-            item['Id'] = str(i)
-            item['MessageBody'] = headlines[i]
-            item['MessageGroupId'] = 'headlines'
+        for i, message in enumerate(messages):
+            item = {
+                "Id": str(i),
+                "MessageBody": transform_function(message)
+            }
+
+            if message_group_id:
+                item['MessageGroupId'] = message_group_id
+
             batch.append(item)
             
-            if len(batch) == 10:
-                try:
-                    self._SQS.send_message_batch(QueueUrl = self.queue_url,Entries=batch)
-                except Exception as e:
-                    print(f"Batch {i//10} could not be sent: {e}")
+            if len(batch) == max_batch_size:
+                self._send_batch_internal(queue_url, batch, i//max_batch_size)
                 batch = []
 
         if batch:
-            try:
-                self._SQS.send_message_batch(QueueUrl = self.queue_url,Entries=batch)
-            except Exception as e:
-                print(f"Batch {i//10} could not be sent: {e}")
+            self._send_batch_internal(queue_url, batch, len(messages)//max_batch_size)
+
+    def _send_batch_internal(self, queue_url: str, batch: list, batch_number: int):
+        '''Internal helper to send entries to sqs.'''
+        try:
+            self._SQS.send_message_batch(
+                QueueUrl = queue_url,
+                Entries=batch
+            )
+        except Exception:
+            logger.error(f'Batch {batch_number} could not be sent.')
 
     def poll_messages(self,max_messages: int = 10, wait_time: int = 10,visibility_timeout: int = 30) -> list[dict]:
         """

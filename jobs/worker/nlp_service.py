@@ -106,6 +106,8 @@ class HeadlineProcessService:
 
         :param preprocessed_keywords: List of keywords to process. 
         '''
+        if not preprocessed_keywords:
+            raise ValueError("preprocessed_keywords required.")
 
         keyword_string = ' '.join(preprocessed_keywords).strip()
         doc = self._nlp(keyword_string)

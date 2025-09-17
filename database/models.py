@@ -19,6 +19,13 @@ class News(Base):
     keywords_id: Mapped[int] = mapped_column(ForeignKey('articlekeywords.id'))
     keywords: Mapped['ArticleKeywords'] = relationship(back_populates='news_article')
 
+    Index(
+        'uq_news_url_headline'
+        ,'url'
+        , 'headline'
+        ,unique = True
+    )
+
 
 class DailyTrends(Base):
     '''Daily trends from google trends'''

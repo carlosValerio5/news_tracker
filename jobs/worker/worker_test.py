@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import patch, MagicMock
 
 import types
@@ -68,7 +69,7 @@ def worker_with_mocks(mock_processor_service, mock_aws_handler, mock_session_fac
 
 def test_process_messages_happy_path(mock_processor_service, mock_aws_handler, mock_session_factory):
     # Fake a headline message
-    msgs = [{"Body": "Breaking News", "ReceiptHandle": "abc123"}]
+    msgs = [{"Body": json.dumps({"id": 1, "headline": "Breaking news"}), "ReceiptHandle": "abc123"}]
     mock_aws_handler.poll_messages.return_value = msgs
     mock_aws_handler.delete_message_main_queue.return_value = None
 
@@ -78,14 +79,15 @@ def test_process_messages_happy_path(mock_processor_service, mock_aws_handler, m
         "id" : 1,
         "keyword_1": "Apple",
         "keyword_2": None,
-        "keyword_3": None
+        "keyword_3": None,
+        "composed_query" :"Apple"
     }]
 
     with patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects", return_value=True) as mock_write, \
         patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects_returning", return_value=write_batch_returning_value) as mock_write_returning:
 
         mock_aws_handler.poll_messages.return_value = [
-            {"Body": "Breaking News", "ReceiptHandle" : "abc123"}
+            {"Body": json.dumps({"id": 1, "headline": "Breaking news"}), "ReceiptHandle": "abc123"}
         ]
         mock_aws_handler.delete_message_main_queue.return_value = None
 
@@ -140,7 +142,7 @@ def test_process_list_of_messages_success_delete_error(mock_processor_service, m
     mock_processor_service.extract_keywords = MagicMock(return_value={"keyword_1": "Apple"})
     mock_aws_handler.delete_message_main_queue = MagicMock(side_effect=ValueError("bad receipt"))
     mock_aws_handler.send_message_to_fallback_queue = MagicMock()
-    messages = [{"Body": "valid", "ReceiptHandle": "abc"}]
+    messages = [{"Body": json.dumps({"id": 1, "headline": "valid"}), "ReceiptHandle": "abc"}]
     job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, mock_session_factory)
     results = job.process_list_of_messages(messages)
     assert len(results) == 1

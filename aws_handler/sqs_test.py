@@ -60,7 +60,7 @@ def test_send_message_exception(aws_helper, capsys, mock_queue):
 def test_send_batch_single_batch(aws_helper):
     aws = aws_helper
     headlines = [f"headline {i}" for i in range(10)]
-    aws.send_batch(headlines)
+    aws.send_batch(headlines, 'headlines')
     assert aws._SQS.send_message_batch.call_count == 1
     args, kwargs = aws._SQS.send_message_batch.call_args
     entries = kwargs['Entries']
@@ -79,13 +79,14 @@ def test_send_batch_multiple_batches(aws_helper):
     batch_sizes = [call.kwargs['Entries'] for call in aws._SQS.send_message_batch.call_args_list]
     assert [len(b) for b in batch_sizes] == [10, 10, 5]
 
-def test_send_batch_exception_prints_error(aws_helper, capsys):
+def test_send_batch_exception_prints_error(aws_helper, capsys, caplog):
     aws = aws_helper
     aws._SQS.send_message_batch.side_effect = [Exception("Batch error"), None]
     headlines = [f"headline {i}" for i in range(11)]
-    aws.send_batch(headlines)
-    captured = capsys.readouterr()
-    assert "Batch 0 could not be sent: Batch error" in captured.out
+    with caplog.at_level("ERROR"):
+        output = aws.send_batch(headlines)
+
+    assert "Batch 0 could not be sent." in caplog.text
 
 def test_delete_message_success(aws_helper):
     aws_helper._SQS = MagicMock()

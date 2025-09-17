@@ -1,19 +1,3 @@
--- Database: news_tracker
-
--- DROP DATABASE IF EXISTS news_tracker;
-
-CREATE DATABASE news_tracker
-    WITH
-    OWNER = postgres
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en_US.UTF-8'
-    LC_CTYPE = 'en_US.UTF-8'
-    LOCALE_PROVIDER = 'libc'
-    TABLESPACE = pg_default
-    CONNECTION LIMIT = -1
-    IS_TEMPLATE = False;
-
-
 -- SCHEMA: news_schema
 
 -- DROP SCHEMA IF EXISTS news_schema ;
@@ -103,6 +87,7 @@ CREATE TABLE IF NOT EXISTS news_schema.articlekeywords
     composed_query text COLLATE pg_catalog."default" NOT NULL,
     extraction_confidence numeric(3,2),
     extracted_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    composed_query text COLLATE pg_catalog."default" GENERATED ALWAYS AS (((((lower(COALESCE(keyword_1, ''::text)) || '|'::text) || lower(COALESCE(keyword_2, ''::text))) || '|'::text) || lower(COALESCE(keyword_3, ''::text)))) STORED,
     CONSTRAINT articlekeywords_pkey PRIMARY KEY (id),
     CONSTRAINT keywords_not_empty CHECK (keyword_1 IS NOT NULL AND TRIM(BOTH FROM keyword_1) <> ''::text)
 )
@@ -127,6 +112,14 @@ CREATE INDEX IF NOT EXISTS idx_composed_query
 CREATE INDEX IF NOT EXISTS idx_keyword_1
     ON news_schema.articlekeywords USING btree
     (keyword_1 COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- DROP INDEX IF EXISTS news_schema.uq_composed_query;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_composed_query
+    ON news_schema.articlekeywords USING btree
+    (composed_query COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 
@@ -249,6 +242,13 @@ CREATE INDEX IF NOT EXISTS idx_published_at
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 
+-- DROP INDEX IF EXISTS news_schema.uq_news_url_headline;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_news_url_headline
+    ON news_schema.news USING btree
+    (url COLLATE pg_catalog."default" ASC NULLS LAST, headline COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
 
 ALTER SEQUENCE news_schema.news_id_seq
     OWNED BY news_schema.news.id;
