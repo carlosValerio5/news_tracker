@@ -25,6 +25,8 @@ COPY jobs/bbc ./jobs/bbc
 COPY aws_handler ./aws_handler
 COPY database ./database
 COPY jobs/bbc/lambda_handler.py ./lambda_handler.py
+COPY helpers ./helpers
+COPY logger ./logger
 
 # Copy dependencies from builder
 COPY --from=builder /python /var/task
