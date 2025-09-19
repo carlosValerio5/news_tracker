@@ -220,14 +220,9 @@ def run_scraping_job():
     results = []
     try:
         # If duplicate is found the function will not update.
-        results = DataBaseHelper.write_batch_of_objects_returning(News, session_factory, scraper.get_news(), logger, [News.id, News.headline], ['url', 'headline'])
+        results = DataBaseHelper.write_batch_of_objects_and_return(News, session_factory, scraper.get_news(), logger, [News.id, News.headline], ['url', 'headline'])
     except Exception:
         logger.error('Failed to write messages to db')
-
-    #send to db
-    # with Session(engine) as session:
-    #    session.add_all(scraper.get_news())
-    #    session.commit()
 
     if not results:
         logger.error("Failed to write objects to db.")
