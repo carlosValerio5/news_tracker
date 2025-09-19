@@ -2,6 +2,7 @@ import boto3
 import json
 import logging
 from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
+from exceptions.sqs_exceptions import NoSQSFoundException, SQSMessageBatchNotSent
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class AwsHelper:
             self._SQS = self._get_service()
         except Exception as e:
             logger.exception("Failed to retrieve sqs Client")
-            self._SQS = None
+            raise NoSQSFoundException
 
         try:
             # This gets the actual Queue resource for high-level send calls
@@ -83,7 +84,7 @@ class AwsHelper:
         max_batch_size = 10
         queue_url = queue_url or self.queue_url
         
-        if transform_function is None:
+        if not transform_function:
             transform_function = lambda item: str(item)
 
         batch= []
@@ -105,15 +106,19 @@ class AwsHelper:
         if batch:
             self._send_batch_internal(queue_url, batch, len(messages)//max_batch_size)
 
-    def _send_batch_internal(self, queue_url: str, batch: list, batch_number: int):
+    def _send_batch_internal(self, queue_url: str, batch: list, batch_number: int, max_tries: int = 5):
         '''Internal helper to send entries to sqs.'''
-        try:
-            self._SQS.send_message_batch(
-                QueueUrl = queue_url,
-                Entries=batch
-            )
-        except Exception:
-            logger.error(f'Batch {batch_number} could not be sent.')
+        for i in range(max_tries):
+            try:
+                self._SQS.send_message_batch(
+                    QueueUrl = queue_url,
+                    Entries=batch
+                )
+                break
+            except Exception:
+                logger.error(f'Batch {batch_number} could not be sent.')
+        else:
+            raise SQSMessageBatchNotSent
 
     def poll_messages(self,max_messages: int = 10, wait_time: int = 10,visibility_timeout: int = 30) -> list[dict]:
         """
