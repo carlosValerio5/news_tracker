@@ -70,10 +70,10 @@ def get_headlines():
     ]
     return response
 
-@app.get('/keywords')
-def get_keywords(): # use nlp service or get from db, if from db keywords max = 3
+@app.get('/keywords', status_code=200)
+def get_keywords(): 
     '''
-    Gets headlines keywords
+    Gets headlines keywords extracted during the current date.
 
     :param keyword_number: Specifies the number of keywords to get.
     '''
@@ -109,18 +109,18 @@ def get_keywords(): # use nlp service or get from db, if from db keywords max = 
     ]
 
 
-@app.get('/keywords/{id}')
-def get_keyword_by_id(keywords_id: int):
+@app.get('/keywords/{id}', status_code=200)
+def get_keyword_by_id(id: int):
     '''
     Gets specific keyword set by id
 
-    :param keywords_id: Unique id for keywords.
+    :param id: Unique id for keywords.
     '''
-    stmt = select(models.ArticleKeywords).filter(models.ArticleKeywords.id == id)
+    stmt = select(models.ArticleKeywords, models.News.headline).join(models.News.keywords).filter(models.ArticleKeywords.id == id)
 
     try:
         with Session(engine) as session:
-            result = session.execute(stmt).scalars().all()
+            result = session.execute(stmt).all()
     except SQLAlchemyError:
         raise HTTPException(
             status_code=501,
@@ -134,12 +134,13 @@ def get_keyword_by_id(keywords_id: int):
 
     return [
         {
+            "headline": headline if headline else "",
             "keyword_1": keywords.keyword_1,
             "keyword_2": keywords.keyword_2,
             "keyword_3": keywords.keyword_3,
             "extracion_confidence": keywords.extraction_confidence
         }
-        for keywords in result
+        for keywords, headline in result
     ]
         
 
