@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index, Time
 from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped 
 '''Moduule defining news model'''
 
@@ -88,5 +88,5 @@ class AdminConfig(Base):
     __tablename__ = 'adminconfig'
     id = Column(Integer, primary_key=True)
     target_email = Column(String, nullable=False)
-    summary_send_time = Column(DateTime)
+    summary_send_time = Column(Time)
     last_updated = Column(DateTime)
