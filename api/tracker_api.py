@@ -24,7 +24,7 @@ class NewsList(BaseModel):
     news: list[News]
 
 
-@app.get('/')
+@app.get('/health-check')
 def health_check():
     '''Checks health api, sqs and db connections.'''
     try:
@@ -70,6 +70,7 @@ def get_keywords(): # use nlp service or get from db, if from db keywords max = 
 
     :param keyword_number: Specifies the number of keywords to get.
     '''
+    pass
 
 
 @app.get('/keywords/{id}')
@@ -169,11 +170,7 @@ def post_headline(news: Union[News, NewsList]):
     Posts a headline to the data base.
     '''
     news_items = []
-    if isinstance(news, News):
-        news_items.append(news)
-
-    if isinstance(news, NewsList):
-        news_items = news.news
+    news_items.extend(news)
 
     session_factory = lambda: Session(engine)
     items_to_write = []
