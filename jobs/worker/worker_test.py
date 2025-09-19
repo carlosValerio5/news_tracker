@@ -84,7 +84,7 @@ def test_process_messages_happy_path(mock_processor_service, mock_aws_handler, m
     }]
 
     with patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects", return_value=True) as mock_write, \
-        patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects_returning", return_value=write_batch_returning_value) as mock_write_returning:
+        patch("jobs.worker.worker.DataBaseHelper.write_batch_of_objects_and_return", return_value=write_batch_returning_value) as mock_write_returning:
 
         mock_aws_handler.poll_messages.return_value = [
             {"Body": json.dumps({"id": 1, "headline": "Breaking news"}), "ReceiptHandle": "abc123"}

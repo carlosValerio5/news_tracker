@@ -50,7 +50,7 @@ class WorkerJob():
         insert_payload = self._deduplicate_article_keywords(article_keywords)
 
         try:
-            db_keywords = DataBaseHelper.write_batch_of_objects_returning(
+            db_keywords = DataBaseHelper.write_batch_of_objects_and_return(
                 ArticleKeywords,
                 self._session_factory,
                 insert_payload,
