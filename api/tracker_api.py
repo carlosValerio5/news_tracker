@@ -77,7 +77,36 @@ def get_keywords(): # use nlp service or get from db, if from db keywords max = 
 
     :param keyword_number: Specifies the number of keywords to get.
     '''
-    pass
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
+    stmt = select(models.ArticleKeywords, models.News).join(models.News.keywords).filter(
+        and_(models.ArticleKeywords.extracted_at >= today, models.ArticleKeywords.extracted_at < tomorrow)
+    )
+
+    try:
+        with Session(engine) as session:
+            result = session.execute(stmt).all()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=501,
+            detail="Could not retrieve keywords information."
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error ocurred."
+        )
+
+    return [
+        {
+            "headline": news.headline,
+            "keyword_1": keywords.keyword_1,
+            "keyword_2": keywords.keyword_2,
+            "keyword_3": keywords.keyword_3,
+            'extraction_confidence': keywords.extraction_confidence
+        }
+        for keywords, news in result
+    ]
 
 
 @app.get('/keywords/{id}')
@@ -87,7 +116,33 @@ def get_keyword_by_id(keywords_id: int):
 
     :param keywords_id: Unique id for keywords.
     '''
-    pass
+    stmt = select(models.ArticleKeywords).filter(models.ArticleKeywords.id == id)
+
+    try:
+        with Session(engine) as session:
+            result = session.execute(stmt).scalars().all()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=501,
+            detail="Could not retrieve keywords data from data base."
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error ocurred."
+        )
+
+    return [
+        {
+            "keyword_1": keywords.keyword_1,
+            "keyword_2": keywords.keyword_2,
+            "keyword_3": keywords.keyword_3,
+            "extracion_confidence": keywords.extraction_confidence
+        }
+        for keywords in result
+    ]
+        
+
 
 @app.get('/trending-now')
 def get_trending_now_trends():
@@ -102,8 +157,8 @@ def get_trending_now_trends():
 
     stmt = select(models.DailyTrends).limit(50).where(
         and_(
-            models.DailyTrends.start_timestamp >= "2025-09-04",
-            models.DailyTrends.start_timestamp < "2025-09-05"
+            models.DailyTrends.start_timestamp >= today,
+            models.DailyTrends.start_timestamp < tomorrow 
             )
     ).order_by(models.DailyTrends.ranking)
     results = None
