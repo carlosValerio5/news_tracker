@@ -137,8 +137,8 @@ def test_scraper_process_feeds(mock_news, mock_requests, fake_navbar_html, fake_
         scraper.process_feeds()
     news = scraper.get_news()
     assert isinstance(news, list)
-    assert len(news) == 6  # 2 items per RSS feed, 3 links
-    assert all(hasattr(n, 'headline') for n in news)
+    assert len(news) == 2  # Does not store duplicates
+    assert all('headline' in n.keys() for n in news)
 
 # Additional tests (such as error handling, edge cases, etc.) are possible.
 # For real scenarios, also mock soup parsing if you want to isolate even further.
