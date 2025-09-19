@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from aws_handler.sqs import AwsHelper  
+from exceptions.sqs_exceptions import SQSMessageBatchNotSent
 
 @pytest.fixture
 def mock_queue():
@@ -83,8 +84,8 @@ def test_send_batch_exception_prints_error(aws_helper, capsys, caplog):
     aws = aws_helper
     aws._SQS.send_message_batch.side_effect = [Exception("Batch error"), None]
     headlines = [f"headline {i}" for i in range(11)]
-    with caplog.at_level("ERROR"):
-        output = aws.send_batch(headlines)
+    with pytest.raises(SQSMessageBatchNotSent):
+         aws.send_batch(headlines)
 
     assert "Batch 0 could not be sent." in caplog.text
 

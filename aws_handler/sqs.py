@@ -100,15 +100,28 @@ class AwsHelper:
             batch.append(item)
             
             if len(batch) == max_batch_size:
-                self._send_batch_internal(queue_url, batch, i//max_batch_size)
+                try:
+                    self._send_batch_internal(queue_url, batch, i//max_batch_size)
+                except SQSMessageBatchNotSent:
+                    raise
                 batch = []
 
         if batch:
-            self._send_batch_internal(queue_url, batch, len(messages)//max_batch_size)
+            try:
+                self._send_batch_internal(queue_url, batch, len(messages)//max_batch_size)
+            except SQSMessageBatchNotSent:
+                raise
 
-    def _send_batch_internal(self, queue_url: str, batch: list, batch_number: int, max_tries: int = 5):
-        '''Internal helper to send entries to sqs.'''
-        for i in range(max_tries):
+    def _send_batch_internal(self, queue_url: str, batch: list, batch_number: int, max_retries: int = 5):
+        '''
+        Internal helper to send entries to sqs.
+        
+        :param queue_url:  URL of the target queue.
+        :param batch: The batch to be sent to the message queue.
+        :param batch_number: The number identifying the batch within an operation with several batches.
+        :param max_retries: Maximum number of retries when sending to SQS fails, default = 5.
+        '''
+        for i in range(max_retries):
             try:
                 self._SQS.send_message_batch(
                     QueueUrl = queue_url,
