@@ -27,6 +27,7 @@ COPY database ./database
 COPY jobs/bbc/lambda_handler.py ./lambda_handler.py
 COPY helpers ./helpers
 COPY logger ./logger
+COPY exceptions ./exceptions
 
 # Copy dependencies from builder
 COPY --from=builder /python /var/task

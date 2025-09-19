@@ -21,6 +21,7 @@ COPY aws_handler /app/aws_handler
 COPY database /app/database
 COPY .env /app/.env
 COPY helpers /app/helpers
+COPY exceptions ./exceptions
 
 FROM python:3.13
 
