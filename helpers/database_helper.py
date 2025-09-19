@@ -1,4 +1,5 @@
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from logging import Logger
 
 '''
@@ -31,7 +32,7 @@ class DataBaseHelper:
 
 
     @staticmethod
-    def write_batch_of_objects_returning(object_type, session_factory, objects_to_write: list[object], logger: Logger, return_columns: list=None, conflict_index: list= None) -> list:
+    def write_batch_of_objects_and_return(object_type, session_factory, objects_to_write: list[object], logger: Logger, return_columns: list=None, conflict_index: list= None) -> list:
         '''
         Writes objects to data base from the suplied list of objects returning the specified columns.
 
@@ -46,7 +47,7 @@ class DataBaseHelper:
                 stmt = insert(object_type).values(objects_to_write)
 
                 if conflict_index:
-                    # Update is undesired, but returning is still neded for repeated rows
+                    # Update is undesired, but returning is still needed for repeated rows
                     dummy_col = list(object_type.__table__.primary_key.columns)[0].name
                     stmt = stmt.on_conflict_do_update(
                         index_elements=conflict_index,
@@ -69,4 +70,37 @@ class DataBaseHelper:
         except Exception as e:
             logger.error(f'Failed to commit objects to database.\n{e}')
             raise 
+
+    @staticmethod
+    def write_orm_objects(objects_to_write: list, session_factory, logger):
+        '''
+        Writes a single sqlalchemy object to db.
+
+        :param objects_to_write: List of objects to write.
+        :param session_factory: Factory function to create a data base session.
+        :param logger: Logger object to handle logging logic.
+        '''
+        try:
+            with session_factory() as session:
+                session.add_all(objects_to_write)
+                session.commit()
+        except Exception:
+            logger.error(f"Failed to write object to database.")
+            raise
+
+    @staticmethod
+    def check_database_connection(session_factory, logger):
+        '''
+        Checks the database connection.
+
+        :param session_factory: Factory method to create a data base connection.
+        :param logger: Logger object to handle logging logic.
+        '''
+
+        try:
+            with session_factory() as session:
+                session.execute('SELECT 1')
+        except (SQLAlchemyError):
+            logger.error('Connection to data base failed.')
+            raise
 
