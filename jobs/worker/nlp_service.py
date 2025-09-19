@@ -49,7 +49,7 @@ class HeadlineProcessService:
         }
 
         if not article_keyword.get('keyword_1'):
-            raise ValueError('Unable to extract keyword_1, from %s', headline)
+            raise ValueError(f'Unable to extract keyword_1, from {headline}')
         
         return article_keyword
 
