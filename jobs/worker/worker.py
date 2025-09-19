@@ -1,12 +1,13 @@
 import logging
+import json
 from collections.abc import Callable
 from aws_handler.sqs import AwsHelper
 from sqlalchemy.dialects.postgresql import insert
 
-from database.models import ArticleKeywords
+from database.models import ArticleKeywords, TrendsResults, News
 from helpers.database_helper import DataBaseHelper 
-from trends_service import GoogleTrendsService
-from nlp_service import HeadlineProcessService
+from jobs.worker.trends_service import GoogleTrendsService
+from jobs.worker.nlp_service import HeadlineProcessService
 
 '''Worker module, bussiness logic for headline processing'''
 
@@ -40,25 +41,94 @@ class WorkerJob():
 
         article_keywords = self.process_list_of_messages(messages)
 
+        # keep only entries with keyword 1
+        article_keywords = [ak for ak in article_keywords if ak.get("keyword_1")]
         if not article_keywords:
-            logger.warning("No keywords extracted at WorkerJob.process_messages.")
+            logger.warning("No keywords extracted.")
             return
 
+        insert_payload = self._deduplicate_article_keywords(article_keywords)
+
         try:
-            result = DataBaseHelper.write_batch_of_objects(ArticleKeywords, self._session_factory, article_keywords, logger)
+            db_keywords = DataBaseHelper.write_batch_of_objects_and_return(
+                ArticleKeywords,
+                self._session_factory,
+                insert_payload,
+                logger,
+                return_columns=[
+                    ArticleKeywords.id,
+                    ArticleKeywords.composed_query,
+                    ArticleKeywords.keyword_1,
+                    ArticleKeywords.keyword_2,
+                    ArticleKeywords.keyword_3
+                ],
+                conflict_index=['composed_query']
+            )
         except Exception:
             logger.exception('Failed to write keywords.')
             raise 
 
+        # map News.keywords_id to respective row in table ArticleKeywords
+        session = self._session_factory()
+        news_keywords_mapping = self._deduplicate_keywords_news(article_keywords, db_keywords)
+        try:
+            for keyword_id, news_id in news_keywords_mapping:
+
+                session.query(News).filter(News.id == news_id).update(
+                    {"keywords_id": keyword_id}
+                )
+            session.commit()
+        except:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
         ### Gtrends estimate popularity
+        trends_results = self.estimate_popularity(db_keywords)
 
+        if not trends_results:
+            logger.warning("No trends results extracted at WorkerJob.process_messages.")
+            return
 
-    def estimate_popularity(self, article_keywords):
-        '''Estimates the popularity of the extracted headlines'''
+        try:
+            result = DataBaseHelper.write_batch_of_objects(TrendsResults, self._session_factory, trends_results, logger)
+        except Exception:
+            logger.exception('Failed to write trends results.')
+            raise
+
+    def estimate_popularity(self, result: list[dict]) -> list[dict]:
+        '''
+        Estimates the popularity of the extracted headlines
+        
+        :param result: Result of inserted rows in ArticleKeywords
+        '''
 
         trends_results = []
-        for news_article in article_keywords:
-            current, average, peak = self._api.estimate_popularity(news_article)
+        for row in result:
+            id = row.get('id')
+            keywords = [row.get('keyword_1', ''), row.get('keyword_2', ''), row.get('keyword_3', '')]
+
+            if not keywords:
+                logger.warning("Empty keyword list. (worker.estimate_popularity)")
+                continue
+            
+            try:
+                principal_keyword = self._processor_service.get_principal_keyword(keywords)
+            except:
+                logger.exception('Failed to extract principal keywords.')
+
+            result_trends = self._api.estimate_popularity(principal_keyword)
+
+            if not result_trends:
+                logger.error('Failed to estimate popularity for keywords with id %d', id)
+                continue
+
+            result_trends['article_keywords_id'] = id
+
+            trends_results.append(result_trends)
+
+        return trends_results
 
     def process_list_of_messages(self, messages: list) -> list:
         '''
@@ -68,9 +138,17 @@ class WorkerJob():
         '''
         article_keywords = []
         for message in messages:
-            headline = message.get('Body', '')
+            try:
+                payload = json.loads(message.get('Body', {}))
+            except json.JSONDecodeError:
+                logger.warning('Invalid message format, sending to fallback queue.')
+                self._aws_handler.send_message_to_fallback_queue(message=message)
+                continue
 
-            if not headline or not headline.strip():
+            news_id = payload.get('id', '')
+            headline = payload.get('headline', '').strip()
+
+            if not news_id or not headline:
                 logger.warning('Failed to process headline, sent to fallback queue.')
                 self._aws_handler.send_message_to_fallback_queue(message=message)
                 continue
@@ -82,7 +160,13 @@ class WorkerJob():
                 self._aws_handler.send_message_to_fallback_queue(message=message)
                 continue
             
-            article_keywords.append(keywords)
+            article_keywords.append({
+                "news_id": news_id,
+                "keyword_1": keywords.get("keyword_1"),
+                "keyword_2": keywords.get("keyword_2"),
+                "keyword_3": keywords.get("keyword_3"),
+                "extraction_confidence": keywords.get("extraction_confidence"),
+            })
 
             try:
                 self._aws_handler.delete_message_main_queue(message.get('ReceiptHandle', ''))
@@ -91,12 +175,45 @@ class WorkerJob():
                 logger.exception(e)
         
         return article_keywords
+            
+    def _deduplicate_article_keywords(self, article_keywords: list) -> list[dict]:
+        '''
+        Deduplicates article keywords entries to insert to data base.
+        
+        :param article_keywords: List containing the objects to deduplicate.
+        '''
 
-    def get_messages(self):
-        pass
+        insert_payload = []
+        seen = set()
+        for entry in article_keywords:
+            keywords = [kw.lower() for kw in (entry.get("keyword_1"), entry.get("keyword_2"), entry.get("keyword_3")) if kw]
+            composed_query = "|".join(keywords)
 
-    def delete_messages(self):
-        pass
+            if composed_query in seen:
+                continue
 
-    def rate_headlines(self):
-        pass
+            insert_payload.append(
+                {k: entry[k] for k in ("keyword_1", "keyword_2", "keyword_3", "extraction_confidence")}
+            )
+
+        return insert_payload
+
+    def _deduplicate_keywords_news(self, entries: list, keywords_inserted: list) -> tuple:
+        '''
+        Deduplicates pair of articlekeywords and news
+        
+        :param entries: list of entries to deduplicate.
+        :param keywords_inserted: List of keywords already inserted and to be mapped.
+        '''
+        keywords_to_id = {(row["keyword_1"], row["keyword_2"], row["keyword_3"]): row["id"] for row in keywords_inserted}
+        seen = set()
+        for article_keyword in entries:
+            news_id = article_keyword["news_id"]
+            keywords_key = (article_keyword["keyword_1"], article_keyword["keyword_2"], article_keyword["keyword_3"])
+            keyword_id = keywords_to_id[keywords_key]
+
+            # check for duplicates
+            if keyword_id and (keyword_id, news_id) not in seen:
+                seen.add((keyword_id, news_id))
+
+        return seen

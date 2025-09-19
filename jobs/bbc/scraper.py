@@ -1,3 +1,4 @@
+import json
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -11,6 +12,8 @@ from os import getenv
 from database.models import News
 from database.data_base import engine
 from aws_handler.sqs import AwsHelper
+from helpers.database_helper import  DataBaseHelper
+from logger.logging_config import logger
 
 class Scraper:
     '''Scraper object to extract bbc news'''
@@ -19,7 +22,7 @@ class Scraper:
         self._request_URL = "https://bbc.co.uk/news"
         self._navbar_links : list[str] = self._extract_navbar_links()
         self._rss_feeds : list[str] = self._extract_rss_feeds()
-        self._news: list[News] = []
+        self._news: list[dict] = []
         self._headlines: list[str] = []
 
     def get_headlines(self) -> list:
@@ -98,6 +101,7 @@ class Scraper:
         if len(self._rss_feeds) == 0:
             return
 
+        seen = set()
         for feed_url in self._rss_feeds:
             try:
                 response = requests.get(feed_url)
@@ -126,7 +130,12 @@ class Scraper:
 
                 summary = item.find('description').get_text().strip()
 
-                news = News(headline=headline, url=url, news_section=news_section, published_at=published_date, summary=summary)
+                key = (url, headline)
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                news = {"headline":headline, "url":url, "news_section":news_section, "published_at":published_date, "summary":summary}
                 self._headlines.append(headline) 
                 self._news.append(news)
 
@@ -206,15 +215,21 @@ def run_scraping_job():
     scraper = Scraper()
     scraper.process_feeds()
 
+    session_factory = lambda: Session(engine)
 
-    #send to db
-    with Session(engine) as session:
-        session.add_all(scraper.get_news())
-        session.commit()
+    results = []
+    try:
+        # If duplicate is found the function will not update.
+        results = DataBaseHelper.write_batch_of_objects_and_return(News, session_factory, scraper.get_news(), logger, [News.id, News.headline], ['url', 'headline'])
+    except Exception:
+        logger.error('Failed to write messages to db')
 
+    if not results:
+        logger.error("Failed to write objects to db.")
+        return
     #send to sqs queue
-    aws_helper.send_batch(scraper.get_headlines())
-    print(f'Headlines count: {len(scraper.get_headlines())}')
+    aws_helper.send_batch(results, "headlines", lambda item: json.dumps(item))
+    logger.info(f'Headlines count: {len(scraper.get_headlines())}')
 
 
 if __name__ == '__main__':
