@@ -1,6 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from api.tracker_api import app, DataBaseHelper, logger, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
+from helpers.database_helper import DataBaseHelper
+from logger.logging_config import logger
+from api.tracker_api import app
 from unittest.mock import MagicMock
 
 client = TestClient(app)
@@ -15,13 +18,13 @@ mock_session.__exit__.return_value = None
 
 def test_health_check_available(mocker):
     mocker.patch.object(DataBaseHelper, 'check_database_connection', return_value=None)
-    response = client.get('/')
+    response = client.get('/health-check')
     assert response.status_code == 200
     assert response.json() == {'Status': 'Available'}
 
 def test_health_check_unavailable(mocker):
     mocker.patch.object(DataBaseHelper, 'check_database_connection', side_effect=SQLAlchemyError())
-    response = client.get('/')
+    response = client.get('/health-check')
     assert response.status_code == 200
     assert response.json() == {'Status': 'Unavailable'}
 
@@ -124,8 +127,7 @@ def test_get_headlines_by_date_success(mocker):
 
 def test_get_headlines_by_date_invalid_date():
     response = client.get('/headlines/not-a-date')
-    assert response.status_code == 501
-    assert 'Failed to parse date' in response.json()['detail']
+    assert response.status_code == 422
 
 def test_get_headlines_by_date_db_error(mocker):
     mock_session = MagicMock()
@@ -160,7 +162,7 @@ def test_post_single_headline_success(mocker):
 
     response = client.post('/headlines', json=payload)
     assert response.status_code == 201
-    assert response.json() == payload
+    assert response.json() == [payload]
 
 def test_post_headline_write_error(mocker):
     mocker.patch('api.tracker_api.DataBaseHelper.write_orm_objects', side_effect=SQLAlchemyError())
@@ -254,3 +256,75 @@ def test_get_admin_config_db_error(mocker):
 
     with pytest.raises(Exception):
         client.get('/admin-config?id=1')
+
+# ----------------------
+# post_admin_config test
+# ----------------------
+
+# ------------------
+# 1. Happy Path Test
+# ------------------
+def test_post_admin_config_success(mocker):
+    # Mock DB write function to behave normally
+    mocker.patch.object(DataBaseHelper, "write_orm_objects", return_value=None)
+
+    payload = {
+        "target_email": "test@example.com",
+        "summary_send_time": "12:00:00",
+        "last_updated": "2025-09-17T00:00:00"
+    }
+
+    response = client.post("/admin-config", json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["target_email"] == payload["target_email"]
+    assert data["summary_send_time"] == payload["summary_send_time"]
+
+
+# --------------------------
+# 2. Invalid Email Format
+# --------------------------
+def test_post_admin_config_invalid_email():
+    payload = {
+        "target_email": "invalid-email-format",
+        "summary_send_time": "12:00:00",
+        "last_updated": "2025-09-17T00:00:00"
+    }
+
+    response = client.post("/admin-config", json=payload)
+    assert response.status_code == 400
+    assert "Invalid format" in response.json()["detail"]
+
+
+# -------------------------------------------
+# 3. SQLAlchemyError during DB write
+# -------------------------------------------
+def test_post_admin_config_sqlalchemy_error(mocker):
+    mocker.patch.object(DataBaseHelper, "write_orm_objects", side_effect=SQLAlchemyError("DB error"))
+
+    payload = {
+        "target_email": "test@example.com",
+        "summary_send_time": "12:00:00",
+        "last_updated": "2025-09-17T00:00:00"
+    }
+
+    response = client.post("/admin-config", json=payload)
+    assert response.status_code == 501
+    assert "Failed to write orm objects" in response.json()["detail"]
+
+
+# -------------------------------------------
+# 4. Unexpected Exception during DB write
+# -------------------------------------------
+def test_post_admin_config_unexpected_error(mocker):
+    mocker.patch.object(DataBaseHelper, "write_orm_objects", side_effect=Exception("Unexpected error"))
+
+    payload = {
+        "target_email": "test@example.com",
+        "summary_send_time": "12:00:00",
+        "last_updated": "2025-09-17T00:00:00"
+    }
+
+    response = client.post("/admin-config", json=payload)
+    assert response.status_code == 500
+    assert "Unexpedted error ocurred" in response.json()["detail"]

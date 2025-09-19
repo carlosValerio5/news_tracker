@@ -1,9 +1,10 @@
+import re
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 from typing import Union, Optional
 
 from database.data_base import engine
@@ -17,11 +18,17 @@ class News(BaseModel):
     headline: str
     url: str
     news_section: str
-    published_at: str
+    published_at: datetime
     summary: str
 
 class NewsList(BaseModel):
     news: list[News]
+
+class AdminConfig(BaseModel):
+    target_email: str
+    summary_send_time: time
+    last_updated: datetime
+
 
 
 @app.get('/health-check')
@@ -124,25 +131,16 @@ def get_trending_now_trends():
 
 
 @app.get('/headlines/{date}', status_code=200)
-def get_headlines_by_date(date: str):
+def get_headlines_by_date(date: date):
     '''
     Get headlines for a specific date.
 
     :param date: Date to retrieve headlines from.
     '''
-    try:
-        date_filter = datetime.strptime(date, '%Y-%m-%d')
-        date_tomorrow = date_filter + timedelta(days=1)
-        date_filter = date_filter.date()
-        date_tomorrow = date_tomorrow.date()
-    except Exception:
-        raise HTTPException(
-            status_code=501,
-            detail=f'Failed to parse date: {date}'
-        )
+    next_date = date + timedelta(days=1)
 
     stmt = select(models.News).where(
-        and_(models.News.published_at >= date_filter, models.News.published_at < date_tomorrow))
+        and_(models.News.published_at >= date, models.News.published_at < next_date))
     result = []
     try:
         with Session(engine) as session:
@@ -170,6 +168,8 @@ def post_headline(news: Union[News, NewsList]):
     Posts a headline to the data base.
     '''
     news_items = []
+    if isinstance(news, News):
+        news = [news]
     news_items.extend(news)
 
     session_factory = lambda: Session(engine)
@@ -267,3 +267,44 @@ def get_admin_config(id: Optional[int]=None, email: Optional[str]=None):
         }
         for config in results
     ]
+
+@app.post("/admin-config", status_code=201)
+def post_admin_config(config: AdminConfig):
+    '''
+    Posts an admin config entry to the database.
+
+    :param config: AdminConfig object containing config data to be inserted.
+    '''
+    # Validates there's only an @ symbol before the . symbol
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", config.target_email):
+        logger.error("Wrong format for email.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid format for target email."
+        )
+
+    session_factory = lambda : Session(engine)
+
+    config_to_insert = models.AdminConfig(
+        target_email = config.target_email,
+        summary_send_time = config.summary_send_time,
+        last_updated = config.last_updated
+    )
+
+    try:
+        DataBaseHelper.write_orm_objects(config_to_insert, session_factory, logger)
+    except SQLAlchemyError:
+        logger.error("Failed to write objects to db.")
+        raise HTTPException(
+            status_code=501,
+            detail="Failed to write orm objects to data base."
+        )
+    except Exception:
+        logger.exception("Exception ocurred during data base write.")
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpedted error ocurred."
+        )
+    
+    return config
+
