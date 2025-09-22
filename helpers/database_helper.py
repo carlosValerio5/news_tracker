@@ -1,5 +1,6 @@
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 from logging import Logger
 
 '''
@@ -104,8 +105,8 @@ class DataBaseHelper:
 
         try:
             with session_factory() as session:
-                session.execute('SELECT 1')
+                session.execute(text('SELECT 1'))
         except (SQLAlchemyError):
-            logger.error('Connection to data base failed.')
+            logger.exception('Connection to data base failed.')
             raise
 
