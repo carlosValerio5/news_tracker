@@ -1,8 +1,8 @@
--- Database: news_tracker
+--- Database: news_tracker
 
 -- DROP DATABASE IF EXISTS news_tracker;
 
-CREATE DATABASE news_tracker
+CREATE DATABASE IF NOT EXISTS news_tracker
     WITH
     OWNER = postgres
     ENCODING = 'UTF8'
@@ -11,10 +11,7 @@ CREATE DATABASE news_tracker
     LOCALE_PROVIDER = 'libc'
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1
-    IS_TEMPLATE = False;
-
-
--- SCHEMA: news_schema
+    IS_TEMPLATE = False;- SCHEMA: news_schema
 
 -- DROP SCHEMA IF EXISTS news_schema ;
 
@@ -55,7 +52,7 @@ ALTER TABLE IF EXISTS news_schema.adminconfig
 
 -- DROP INDEX IF EXISTS news_schema.idx_last_updated;
 
-CREATE INDEX IF NOT EXISTS idx_last_updated
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_last_updated
     ON news_schema.adminconfig USING btree
     (last_updated ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
@@ -64,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_last_updated
 
 -- DROP INDEX IF EXISTS news_schema.idx_target_email;
 
-CREATE INDEX IF NOT EXISTS idx_target_email
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_target_email
     ON news_schema.adminconfig USING btree
     (target_email COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
@@ -103,6 +100,7 @@ CREATE TABLE IF NOT EXISTS news_schema.articlekeywords
     composed_query text COLLATE pg_catalog."default" NOT NULL,
     extraction_confidence numeric(3,2),
     extracted_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    composed_query text COLLATE pg_catalog."default" GENERATED ALWAYS AS (((((lower(COALESCE(keyword_1, ''::text)) || '|'::text) || lower(COALESCE(keyword_2, ''::text))) || '|'::text) || lower(COALESCE(keyword_3, ''::text)))) STORED,
     CONSTRAINT articlekeywords_pkey PRIMARY KEY (id),
     CONSTRAINT keywords_not_empty CHECK (keyword_1 IS NOT NULL AND TRIM(BOTH FROM keyword_1) <> ''::text)
 )
@@ -115,7 +113,7 @@ ALTER TABLE IF EXISTS news_schema.articlekeywords
 
 -- DROP INDEX IF EXISTS news_schema.idx_composed_query;
 
-CREATE INDEX IF NOT EXISTS idx_composed_query
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_composed_query
     ON news_schema.articlekeywords USING btree
     (composed_query COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
@@ -124,9 +122,17 @@ CREATE INDEX IF NOT EXISTS idx_composed_query
 
 -- DROP INDEX IF EXISTS news_schema.idx_keyword_1;
 
-CREATE INDEX IF NOT EXISTS idx_keyword_1
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_keyword_1
     ON news_schema.articlekeywords USING btree
     (keyword_1 COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- DROP INDEX IF EXISTS news_schema.uq_composed_query;
+
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_composed_query
+    ON news_schema.articlekeywords USING btree
+    (composed_query COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 
@@ -177,7 +183,7 @@ ALTER TABLE IF EXISTS news_schema.dailytrends
 
 -- DROP INDEX IF EXISTS news_schema.idx_scraped_at;
 
-CREATE INDEX IF NOT EXISTS idx_scraped_at
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_scraped_at
     ON news_schema.dailytrends USING btree
     (scraped_at ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
@@ -234,7 +240,7 @@ ALTER TABLE IF EXISTS news_schema.news
 
 -- DROP INDEX IF EXISTS news_schema.idx_news_section;
 
-CREATE INDEX IF NOT EXISTS idx_news_section
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_news_section
     ON news_schema.news USING btree
     (news_section COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
@@ -243,12 +249,19 @@ CREATE INDEX IF NOT EXISTS idx_news_section
 
 -- DROP INDEX IF EXISTS news_schema.idx_published_at;
 
-CREATE INDEX IF NOT EXISTS idx_published_at
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_published_at
     ON news_schema.news USING btree
     (published_at ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 
+-- DROP INDEX IF EXISTS news_schema.uq_news_url_headline;
+
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_news_url_headline
+    ON news_schema.news USING btree
+    (url COLLATE pg_catalog."default" ASC NULLS LAST, headline COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
 
 ALTER SEQUENCE news_schema.news_id_seq
     OWNED BY news_schema.news.id;
@@ -301,7 +314,7 @@ ALTER TABLE IF EXISTS news_schema.trendsresults
 
 -- DROP INDEX IF EXISTS news_schema.idx_has_data;
 
-CREATE INDEX IF NOT EXISTS idx_has_data
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_has_data
     ON news_schema.trendsresults USING btree
     (has_data ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
@@ -310,7 +323,7 @@ CREATE INDEX IF NOT EXISTS idx_has_data
 
 -- DROP INDEX IF EXISTS news_schema.idx_trends_results_article_keywords_id;
 
-CREATE INDEX IF NOT EXISTS idx_trends_results_article_keywords_id
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_trends_results_article_keywords_id
     ON news_schema.trendsresults USING btree
     (article_keywords_id ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)

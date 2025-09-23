@@ -1,8 +1,8 @@
 import boto3
 import json
-from datetime import datetime
 import logging
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
+from exceptions.sqs_exceptions import NoSQSFoundException, SQSMessageBatchNotSent
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,12 @@ class AwsHelper:
             raise ValueError("queue_url is required")
         self.queue_url = queue_url
         self.fallback_queue_url = fallback_queue_url
-        self._SQS = self._get_service()
+
+        try:
+            self._SQS = self._get_service()
+        except Exception as e:
+            logger.exception("Failed to retrieve sqs Client")
+            raise NoSQSFoundException
 
         try:
             # This gets the actual Queue resource for high-level send calls
@@ -43,9 +48,10 @@ class AwsHelper:
         '''Get SQS queue'''
 
         try:
-            client  = boto3.client('sqs')
+            client  = boto3.client('sqs', region_name='us-east-2')
         except Exception as e:
             print(f'Failed to retrieve service: {e}')
+            raise
 
         return client
 
@@ -63,33 +69,69 @@ class AwsHelper:
         except Exception as e:
             print(f"Message could not be sent: {e}")
 
-    def send_batch(self, headlines: list):
+    def send_batch(self, messages: list, message_group_id: str | None = None, transform_function = None, queue_url: str | None = None):
         '''
         Send messages in batches of 10\
            
         :param headline: list containing all headlines
+        :param message_group_id: Parameter required for FIFO queues, default None.
+        :param transform_function: Function to transform payload into message format.
+        :param queue_url: URL for target queue.
         '''
+        if not messages:
+            return
+    
+        max_batch_size = 10
+        queue_url = queue_url or self.queue_url
+        
+        if not transform_function:
+            transform_function = lambda item: str(item)
 
         batch= []
-        for i in range(len(headlines)):
-            item = {}
-            item['Id'] = str(i)
-            item['MessageBody'] = headlines[i]
-            item['MessageGroupId'] = 'headlines'
+        for i, message in enumerate(messages):
+            item = {
+                "Id": str(i),
+                "MessageBody": transform_function(message)
+            }
+
+            if message_group_id:
+                item['MessageGroupId'] = message_group_id
+
             batch.append(item)
             
-            if len(batch) == 10:
+            if len(batch) == max_batch_size:
                 try:
-                    self._QUEUE.send_messages(Entries=batch)
-                except Exception as e:
-                    print(f"Batch {i//10} could not be sent: {e}")
+                    self._send_batch_internal(queue_url, batch, i//max_batch_size)
+                except SQSMessageBatchNotSent:
+                    raise
                 batch = []
 
         if batch:
             try:
-                self._QUEUE.send_messages(Entries=batch)
-            except Exception as e:
-                print(f"Batch {i//10} could not be sent: {e}")
+                self._send_batch_internal(queue_url, batch, len(messages)//max_batch_size)
+            except SQSMessageBatchNotSent:
+                raise
+
+    def _send_batch_internal(self, queue_url: str, batch: list, batch_number: int, max_retries: int = 5):
+        '''
+        Internal helper to send entries to sqs.
+        
+        :param queue_url:  URL of the target queue.
+        :param batch: The batch to be sent to the message queue.
+        :param batch_number: The number identifying the batch within an operation with several batches.
+        :param max_retries: Maximum number of retries when sending to SQS fails, default = 5.
+        '''
+        for i in range(max_retries):
+            try:
+                self._SQS.send_message_batch(
+                    QueueUrl = queue_url,
+                    Entries=batch
+                )
+                break
+            except Exception:
+                logger.error(f'Batch {batch_number} could not be sent.')
+        else:
+            raise SQSMessageBatchNotSent
 
     def poll_messages(self,max_messages: int = 10, wait_time: int = 10,visibility_timeout: int = 30) -> list[dict]:
         """
@@ -116,6 +158,9 @@ class AwsHelper:
             
             return messages
         
+        except NoCredentialsError:
+            logger.exception('Failed to retrieve credentials for aws.')
+            raise
         except (BotoCoreError, ClientError) as e:
             logger.exception("Error polling SQS queue: %s", e)
             return []
@@ -132,7 +177,7 @@ class AwsHelper:
             raise ValueError('Wrong format for receipt handle.')
 
         try:
-            self._QUEUE.delete_message(
+            self._SQS.delete_message(
                 QueueUrl=self.queue_url,
                 ReceiptHandle=receipt_handle
             )
@@ -151,8 +196,8 @@ class AwsHelper:
             raise ValueError('Wrong format for receipt handle.')
 
         try:
-            self._FALLBACK_QUEUE.delete_message(
-                QueueUrl=self.queue_url,
+            self._SQS.delete_message(
+                QueueUrl=self.fallback_queue_url,
                 ReceiptHandle=receipt_handle
             )
             logger.info("Deleted message from SQS.")
@@ -210,13 +255,13 @@ class AwsHelper:
             })
 
             if len(batch) == 10:
-                self._send_fallback_batch(self._FALLBACK_QUEUE, batch)
+                self._send_fallback_batch(batch)
                 batch = []
-                self.delete_messages_batch(batch, self.fallback_queue_url)
+                self.delete_messages_batch(batch, self.queue_url)
 
         if batch:
-            self._send_fallback_batch(self._FALLBACK_QUEUE, batch)
-            self.delete_messages_batch(batch, self.fallback_queue_url)
+            self._send_fallback_batch(batch)
+            self.delete_messages_batch(batch, self.queue_url)
 
     def send_message_to_fallback_queue(self, message: dict):
         '''
@@ -234,25 +279,32 @@ class AwsHelper:
             raise ValueError('No receipt handle in this message.')
         
         try:
-            self._SQS.send_message(QueueUrl=self.fallback_queue_url, MessageBody=body)
+            self._SQS.send_message(
+                QueueUrl=self.fallback_queue_url, 
+                MessageBody=body,
+                MessageGroupId='Fallback-Group'
+                )
         except ClientError:
             raise
 
         try:
-            self.delete_message_fallback_queue(receipt_handle)
+            self.delete_message_main_queue(receipt_handle)
         except ValueError:
             raise 
         except (BotoCoreError, ClientError):
             raise
 
-    def _send_fallback_batch(self, fallback_queue, batch):
+    def _send_fallback_batch(self, batch: list[dict]):
         '''
         Sends batches of maximum length 10 messages to the fallback queue
 
-        :param fallback_queue: the target queue to send messages to.
+        :param batch: batch of messages to send to fallback queue.
         '''
         try:
-            fallback_queue.send_messages(Entries=batch)
+            self._SQS.send_message_batch(
+                QueueUrl = self.fallback_queue_url,
+                Entries=batch
+            )
             logger.info(f"Fallback batch of {len(batch)} messages sent.")
         except Exception as e:
             logger.exception(f"Failed to send fallback batch: {e}")
