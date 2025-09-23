@@ -1,5 +1,6 @@
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 from logging import Logger
 
 '''
@@ -72,17 +73,22 @@ class DataBaseHelper:
             raise 
 
     @staticmethod
-    def write_orm_objects(objects_to_write: list, session_factory, logger):
+    def write_orm_objects(objects_to_write: list|object, session_factory, logger):
         '''
         Writes a single sqlalchemy object to db.
 
-        :param objects_to_write: List of objects to write.
+        :param objects_to_write: List of objects or single object to write.
         :param session_factory: Factory function to create a data base session.
         :param logger: Logger object to handle logging logic.
         '''
+        list_of_objects = []
+        if not isinstance(objects_to_write, list):
+            objects_to_write = [objects_to_write]
+
+        list_of_objects.extend(objects_to_write)
         try:
             with session_factory() as session:
-                session.add_all(objects_to_write)
+                session.add_all(list_of_objects)
                 session.commit()
         except Exception:
             logger.error(f"Failed to write object to database.")
@@ -99,8 +105,8 @@ class DataBaseHelper:
 
         try:
             with session_factory() as session:
-                session.execute('SELECT 1')
+                session.execute(text('SELECT 1'))
         except (SQLAlchemyError):
-            logger.error('Connection to data base failed.')
+            logger.exception('Connection to data base failed.')
             raise
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index, Time
 from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped 
 '''Moduule defining news model'''
 
@@ -81,3 +81,12 @@ class TrendsResults(Base):
 
     article_keywords_id: Mapped[int] = mapped_column(ForeignKey('articlekeywords.id')) 
     article_keyword: Mapped['ArticleKeywords'] = relationship(back_populates="trends_result")
+
+class AdminConfig(Base):
+    '''Admin configuration table, stores configuration for email recipients.'''
+
+    __tablename__ = 'adminconfig'
+    id = Column(Integer, primary_key=True)
+    target_email = Column(String, nullable=False)
+    summary_send_time = Column(Time)
+    last_updated = Column(DateTime)
