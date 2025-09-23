@@ -221,8 +221,8 @@ def run_scraping_job():
     try:
         # If duplicate is found the function will not update.
         results = DataBaseHelper.write_batch_of_objects_and_return(News, session_factory, scraper.get_news(), logger, [News.id, News.headline], ['url', 'headline'])
-    except Exception:
-        logger.error('Failed to write messages to db')
+    except Exception as e:
+        logger.error('Failed to write messages to db', e)
 
     if not results:
         logger.error("Failed to write objects to db.")

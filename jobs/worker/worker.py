@@ -169,7 +169,7 @@ class WorkerJob():
             })
 
             try:
-                self._aws_handler.delete_message_main_queue(message.get('ReceiptHandle', ''))
+                self._aws_handler.delete_message_main_queue(message.get('ReceiptHandle', ''), message.get('MessageId', ''))
             except ValueError as e:
                 self._aws_handler.send_message_to_fallback_queue(message=message)
                 logger.exception(e)
