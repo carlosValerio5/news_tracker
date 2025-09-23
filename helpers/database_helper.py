@@ -26,9 +26,9 @@ class DataBaseHelper:
                 stmt = insert(object_type).values(objects_to_write).on_conflict_do_nothing()
                 result = session.execute(stmt)
                 session.commit()
-                logger.info(f'Keywords saved succesfully, keyword count: {result.rowcount}')
+                logger.info(f'Keywords saved succesfully, keyword count: {result.rowcount}', extra={'keywords':objects_to_write})
         except Exception as e:
-            logger.error(f'Failed to commit objects to database.\n{e}')
+            logger.error(f'Failed to commit objects to database.', extra={'error': e})
             raise Exception(e)
 
 
@@ -63,13 +63,13 @@ class DataBaseHelper:
 
                 if return_columns:
                     rows = list(result)
-                    logger.info(f'Keywords saved successfully, keyword count: {len(rows)}')
+                    logger.info(f'Keywords saved succesfully, keyword count: {len(rows)}', extra={'keywords':objects_to_write})
                     return [dict(row._mapping) for row in rows]
 
-                logger.info(f'Keywords saved succesfully, keyword count: {result.rowcount}')
+                logger.info(f'Keywords saved succesfully, keyword count: {result.rowcount}', extra={'keywords':objects_to_write})
                 return result
         except Exception as e:
-            logger.error(f'Failed to commit objects to database.\n{e}')
+            logger.error(f'Failed to commit objects to database.', extra={'error':e})
             raise 
 
     @staticmethod
@@ -90,8 +90,8 @@ class DataBaseHelper:
             with session_factory() as session:
                 session.add_all(list_of_objects)
                 session.commit()
-        except Exception:
-            logger.error(f"Failed to write object to database.")
+        except Exception as e:
+            logger.error("Failed to write object to database.", extra={'error':e})
             raise
 
     @staticmethod
@@ -106,7 +106,7 @@ class DataBaseHelper:
         try:
             with session_factory() as session:
                 session.execute(text('SELECT 1'))
-        except (SQLAlchemyError):
-            logger.exception('Connection to data base failed.')
+        except (SQLAlchemyError) as e:
+            logger.exception('Connection to data base failed.', extra={'error':e})
             raise
 
