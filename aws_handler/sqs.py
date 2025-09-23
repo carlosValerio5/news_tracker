@@ -276,7 +276,7 @@ class AwsHelper:
         
         body = json.dumps(message)
         receipt_handle = message.get('ReceiptHandle')
-        message_id = message.get('Id', '')
+        message_id = message.get('MessageId', '')
 
         if not receipt_handle:
             raise ValueError('No receipt handle in this message.')
