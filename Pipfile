@@ -34,7 +34,7 @@ urllib3 = "==2.5.0"
 logger = "==1.4"
 spacy = "==3.8.7"
 pytest-mock = "==3.15.1"
-fastapi = "==0.116.2"
+fastapi = {extras = ["standard"], version = "==0.116.2"}
 
 [dev-packages]
 
