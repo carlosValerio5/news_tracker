@@ -152,7 +152,7 @@ class AwsHelper:
             )
             messages = response.get("Messages", [])
             if messages:
-                logger.info("Fetched %d messages from SQS", len(messages))
+                logger.info(f"Fetched {len(messages)} messages from SQS")
             else:
                 logger.info("No messages available in the SQS queue.")
             
@@ -162,15 +162,16 @@ class AwsHelper:
             logger.exception('Failed to retrieve credentials for aws.')
             raise
         except (BotoCoreError, ClientError) as e:
-            logger.exception("Error polling SQS queue: %s", e)
+            logger.exception(f"Error polling SQS queue: {e}")
             return []
         
     
-    def delete_message_main_queue(self, receipt_handle: str):
+    def delete_message_main_queue(self, receipt_handle: str, message_id: int):
         """
         Delete a single message from the SQS main queue.
         
         :param receipt_handle: The SQS receipt handle from the message
+        :param id: Id of the message deleted.
         """
 
         if not receipt_handle:
@@ -181,15 +182,16 @@ class AwsHelper:
                 QueueUrl=self.queue_url,
                 ReceiptHandle=receipt_handle
             )
-            logger.info("Deleted message from SQS.")
+            logger.info(f"Deleted message from SQS. Id: {message_id}")
         except (BotoCoreError, ClientError) as e:
-            logger.exception("Error deleting SQS message: %s", e)
+            logger.exception(f"Error deleting SQS message: {e}")
 
-    def delete_message_fallback_queue(self, receipt_handle: str):
+    def delete_message_fallback_queue(self, receipt_handle: str, message_id: int):
         """
         Delete a single message from the SQS fallback queue.
 
         :param receipt_handle: The SQS receipt handle from the message
+        :param message_id: Id of the message to be deleted.
         """
 
         if not receipt_handle:
@@ -200,9 +202,9 @@ class AwsHelper:
                 QueueUrl=self.fallback_queue_url,
                 ReceiptHandle=receipt_handle
             )
-            logger.info("Deleted message from SQS.")
+            logger.info(f"Deleted message from SQS. Id: {message_id}")
         except (BotoCoreError, ClientError) as e:
-            logger.exception("Error deleting SQS message: %s", e)
+            logger.exception(f"Error deleting SQS message: {e}")
     
     def delete_messages_batch(self, messages: list, queue_url: str):
         """
@@ -274,6 +276,7 @@ class AwsHelper:
         
         body = json.dumps(message)
         receipt_handle = message.get('ReceiptHandle')
+        message_id = message.get('MessageId', '')
 
         if not receipt_handle:
             raise ValueError('No receipt handle in this message.')
@@ -288,7 +291,7 @@ class AwsHelper:
             raise
 
         try:
-            self.delete_message_main_queue(receipt_handle)
+            self.delete_message_main_queue(receipt_handle, message_id)
         except ValueError:
             raise 
         except (BotoCoreError, ClientError):
