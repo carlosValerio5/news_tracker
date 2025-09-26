@@ -36,3 +36,11 @@ helpers: unviersal directory for reusable methods.<br>
 ### Architecture
 <img width="975" height="821" alt="image" src="https://github.com/user-attachments/assets/4b6e6fff-95eb-4e29-a181-1bc9ae34ebad" />
 
+### UI
+_landing page_<br>
+<img width="1440" height="4316" alt="landing_page" src="https://github.com/user-attachments/assets/37b6c5d2-5e5c-4180-ae0f-140ba8aedb42" />
+
+_news section_
+<img width="1440" height="2876" alt="news_section" src="https://github.com/user-attachments/assets/16e70faf-9eed-4818-b7e0-771f226edf20" />
+
+
