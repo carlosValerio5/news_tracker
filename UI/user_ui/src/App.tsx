@@ -1,24 +1,21 @@
 import React from 'react';
-import NavBar from './components/NavBar';
-import Hero from './core/Hero';
-import LatestNewsSection from './core/LatestNewsSection';
-import FeaturesSection from './core/FeaturesSection';
-import SeeAlsoSection from './core/SeeAlsoSection';
-import SubscribeStrip from './components/SubscribeStrip';
-import Footer from './components/Footer';
+import { Router, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import Landing from './Landing';
+import News from './News';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Landing />,
+  },
+  {
+    path: '/news',
+    element: <News />,
+  }
+]);
 
 function App() {
-  return (
-    <div>
-      <NavBar />
-      <Hero />
-      <LatestNewsSection />
-      <FeaturesSection />
-      <SeeAlsoSection />
-      <SubscribeStrip />
-      <Footer />
-    </div>
-  )
+  return <RouterProvider router={router} />;
 }
 
 export default App
