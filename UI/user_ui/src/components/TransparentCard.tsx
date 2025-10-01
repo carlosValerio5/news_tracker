@@ -1,5 +1,3 @@
-import React from 'react'
-
 interface TransparentCardProps {
     imageUrl?: string;
     subHeading?: string;

@@ -1,16 +1,8 @@
-import React from 'react'
 import { categoryIcons } from '../categoryIcons'
 import { popularityRatings } from '../popularityRatings'
+import type { Article } from '../types/news'
 
 
-interface Article {
-    headline: string;
-    summary: string;
-    url: string;
-    peak_interest: number;
-    current_interest: number;
-    news_section?: string;
-}
 
 
 
@@ -25,8 +17,8 @@ function NewsCard({ article }: { article: Article }) {
             <p className='text-sm'>{article.summary}</p>
             <a className='text-blue-500' href={article.url}>Read more</a>
         </div>
-        <div className='flex flex-row gap-5'>
-            <div className='flex flex-col'>
+        <div className='flex flex-row gap-5 items-center'>
+            <div className='flex flex-col justify-center'>
                 <p className='font-semibold'>Peak Interest: {article.peak_interest}</p>
                 <p className='font-semibold'>Current Interest: {article.current_interest}</p>
             </div>

@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface NewsEntry{
     headline: string,
     summary: string,

@@ -1,4 +1,3 @@
-import React from 'react'
 import RegisterButton from '../components/RegisterButton'
 import { ButtonType } from '../components/RegisterButton'
 

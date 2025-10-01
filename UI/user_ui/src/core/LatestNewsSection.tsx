@@ -1,4 +1,3 @@
-import React from 'react'
 import Card from '../components/Card'
 import news from '../../news_example.json'
 import type { NewsEntry } from '../components/Card'

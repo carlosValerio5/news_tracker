@@ -1,4 +1,3 @@
-import React from 'react'
 import RegisterButton from './RegisterButton';
 
 function SubscribeStrip() {
