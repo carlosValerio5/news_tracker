@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import SearchBar from "./SearchBar";
 import RegisterButton from "./RegisterButton";
+import { Link } from "react-router";
 
 const NavBar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -9,7 +10,7 @@ const NavBar: React.FC = () => {
     <nav className="w-full flex flex-col sm:flex-row items-center p-4 bg-white text-black relative">
       {/* Logo and Hamburger */}
       <div className="w-full flex items-center justify-between sm:justify-start mb-2 sm:mb-0">
-        <div className="text-sm sm:text-xl">NewsTracker</div>
+        <div className="text-sm sm:text-xl"><Link to="/">NewsTracker</Link></div>
         {/* Hamburger icon for mobile */}
         <button
           className="sm:hidden p-2 focus:outline-none"
@@ -33,7 +34,7 @@ const NavBar: React.FC = () => {
         {/* Search Field */}
         <SearchBar />
         {/* News Section */}
-        <a href="/news" className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition">News</a>
+        <Link to="/news" className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition">News</Link>
         {/* Register Button */}
         <RegisterButton type="SECONDARY"/>
       </div>
@@ -42,7 +43,7 @@ const NavBar: React.FC = () => {
       {menuOpen && (
         <div className="sm:hidden absolute top-full left-0 w-full bg-white shadow-md z-10 flex flex-col items-center gap-2 py-4">
           <SearchBar />
-          <a href="#news" className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center">News</a>
+          <Link to="/news" className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center">News</Link>
           <RegisterButton type="SECONDARY"/>
         </div>
       )}
