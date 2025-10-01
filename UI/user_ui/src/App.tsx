@@ -1,5 +1,4 @@
-import React from 'react';
-import { Router, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import Landing from './Landing';
 import News from './News';
 
