@@ -6,6 +6,7 @@ from sqlalchemy import select, and_, desc
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, date, time
 from typing import Union, Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 from database.data_base import engine
 from helpers.database_helper import DataBaseHelper
@@ -29,7 +30,15 @@ class AdminConfig(BaseModel):
     summary_send_time: time
     last_updated: datetime
 
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get('/health-check')
 def health_check():
@@ -285,8 +294,9 @@ def get_news_report():
             "headline":news.headline,
             "summary": news.summary,
             "url": news.url,
-            "peak_intereset": trends.peak_interest,
+            "peak_interest": trends.peak_interest,
             "current_interest": trends.current_interest,
+            "news_section": news.news_section
         }
         for news, trends, in results if trends.has_data 
     ]
