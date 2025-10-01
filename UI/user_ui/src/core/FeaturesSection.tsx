@@ -24,7 +24,7 @@ function FeaturesSection() {
             </div>
         </div>
         
-        <RegisterButton type='SECONDARY' text='Get Started' />        
+        <RegisterButton type='SECONDARY' text='Get Started' className='ml-3'/>        
         <button className='ml-3 bg-gray-50 text-black text-xs p-2 rounded-sm border-gray-50 border-2 hover:bg-black hover:border-black hover:text-white'>See sample Report</button>
     </div>
   )

@@ -36,7 +36,7 @@ const NavBar: React.FC = () => {
         {/* News Section */}
         <Link to="/news" className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition">News</Link>
         {/* Register Button */}
-        <RegisterButton type="SECONDARY"/>
+        <RegisterButton type="SECONDARY" />
       </div>
 
       {/* Dropdown menu for mobile */}
@@ -44,7 +44,7 @@ const NavBar: React.FC = () => {
         <div className="sm:hidden absolute top-full left-0 w-full bg-white shadow-md z-10 flex flex-col items-center gap-2 py-4">
           <SearchBar />
           <Link to="/news" className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center">News</Link>
-          <RegisterButton type="SECONDARY"/>
+          <RegisterButton type="SECONDARY" />
         </div>
       )}
     </nav>
