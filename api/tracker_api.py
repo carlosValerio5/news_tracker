@@ -30,11 +30,14 @@ class AdminConfig(BaseModel):
     summary_send_time: time
     last_updated: datetime
 
+origins = [
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:4173",  # Vite preview server
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite dev server
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
