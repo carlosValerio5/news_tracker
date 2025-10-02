@@ -283,7 +283,7 @@ def test_post_headline_write_error(mocker):
 # ----------------------
 
 def test_get_news_report_success(mocker):
-    mock_news = type('News', (), {'headline': 'Title', 'summary': 'Some summary', 'url': 'http://url'})()
+    mock_news = type('News', (), {'headline': 'Title', 'summary': 'Some summary', 'url': 'http://url', "news_section": "Tech"})()
     mock_trends = type('TrendsResults', (), {'peak_interest': 100, 'current_interest': 50, 'has_data': True})()
     mock_session = MagicMock()
     mock_session.__enter__.return_value = mock_session
@@ -295,7 +295,7 @@ def test_get_news_report_success(mocker):
     assert response.status_code == 200
     data = response.json()
     assert data[0]['headline'] == 'Title'
-    assert 'peak_intereset' in data[0]
+    assert 'peak_interest' in data[0]
 
 def test_get_news_report_db_error(mocker):
     mock_session = MagicMock()
