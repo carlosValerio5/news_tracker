@@ -1,17 +1,5 @@
-import { RouterProvider, createBrowserRouter } from 'react-router-dom';
-import Landing from './Landing';
-import News from './News';
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Landing />,
-  },
-  {
-    path: '/news',
-    element: <News />,
-  }
-]);
+import { RouterProvider } from 'react-router-dom';
+import { router } from './routes/routes';
 
 function App() {
   return <RouterProvider router={router} />;
