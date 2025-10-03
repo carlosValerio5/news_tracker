@@ -4,11 +4,12 @@ function CustomGoogleLogin() {
     const googleLogin = useGoogleLogin({
         onSuccess: async ({code}) => {
             try {
-                const tokens = await fetch('http://localhost:8000/auth/google',{
+                const endpoint = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+                const tokens = await fetch(`${endpoint}/auth/google/callback`,{
                 method: "POST",
                 body: JSON.stringify({code: code}),
                 })
-                console.log(tokens);
+                console.log(await tokens.json());
             }
             catch {
                 console.log('Failed to login');

@@ -1,19 +1,28 @@
 import re
-from fastapi import FastAPI, HTTPException
+from os import getenv
+from fastapi import FastAPI, HTTPException, Security, APIRouter, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, date, time
 from typing import Union, Optional
-from fastapi.middleware.cors import CORSMiddleware
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from dotenv import load_dotenv
 
 from database.data_base import engine
 from helpers.database_helper import DataBaseHelper
 from logger.logging_config import logger 
 from database import models
+from api.jwt_service import JWTService
+from api.auth_service import SecurityService
 
 app = FastAPI()
+security = HTTPBearer()
 
 class News(BaseModel):
     headline: str
@@ -34,6 +43,16 @@ ORIGINS = [
     "http://localhost:5173",  # Vite dev server
     "http://localhost:4173",  # Vite preview server
 ]
+
+load_dotenv()
+GOOGLE_CLIENT_ID = getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = getenv("GOOGLE_CLIENT_SECRET")
+JWT_TOKEN = getenv("JWT_SECRET_KEY")
+
+jwt_service = JWTService(JWT_TOKEN, "HS256")
+
+
+security = HTTPBearer()
 
 app.add_middleware(
     CORSMiddleware,
@@ -377,3 +396,36 @@ def post_admin_config(config: AdminConfig):
     
     return config
 
+@app.post("/auth/google/callback")
+async def google_auth_callback(request: Request):
+    data = await request.json()
+    code = data.get("code")
+    if not code:
+        logger.error("Missing authorization code in request.")
+        return JSONResponse(status_code=400, content={"detail": "Missing authorization code."})
+
+    try:
+        tokens = SecurityService.exchange_code_for_tokens(
+            code,
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET,
+            redirect_uri="postmessage"
+        )
+    except HTTPException as e:
+        logger.error(f"Failed to exchange code for tokens: {e.detail}")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+
+    id_token_str = tokens.get("id_token")
+    if not id_token_str:
+        logger.error("No ID token returned from Google.")
+        return JSONResponse(status_code=400, content={"detail": "No ID token returned from Google."})
+
+    try:
+        user_info = SecurityService.verify_id_token(id_token_str, GOOGLE_CLIENT_ID)
+    except HTTPException as e:
+        logger.error(f"Failed to verify ID token: {e.detail}")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+
+    app_jwt = jwt_service.create_app_jwt(user_info)
+
+    return {"token": app_jwt}
