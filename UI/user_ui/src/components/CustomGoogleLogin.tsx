@@ -1,6 +1,9 @@
 import { useGoogleLogin } from '@react-oauth/google';
+import type { AuthPayload } from '../types/auth';
+import { useNavigate } from 'react-router-dom';
 
 function CustomGoogleLogin() {
+    const navigate = useNavigate();
     const googleLogin = useGoogleLogin({
         onSuccess: async ({code}) => {
             try {
@@ -9,7 +12,10 @@ function CustomGoogleLogin() {
                 method: "POST",
                 body: JSON.stringify({code: code}),
                 })
-                console.log(await tokens.json());
+                const payload: AuthPayload = await tokens.json();
+                localStorage.setItem('auth_token', payload.token);
+                console.log(payload.token)
+                navigate('/');
             }
             catch {
                 console.log('Failed to login');

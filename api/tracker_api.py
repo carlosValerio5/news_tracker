@@ -1,6 +1,7 @@
 import re
+from typing import Annotated
 from os import getenv
-from fastapi import FastAPI, HTTPException, Security, APIRouter, Request
+from fastapi import FastAPI, HTTPException, Security, APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -61,6 +62,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def require_scopes(required_scopes: list[str]):
+    def dependency(credentials: HTTPAuthorizationCredentials = Security(security)):
+        return verify_jwt_token(credentials, required_scopes=required_scopes)
+    return Depends(dependency)
+
+def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Security(security), required_scopes: list[str] = []) -> dict:
+    try:
+        payload = jwt_service.decode_jwt(credentials.credentials)
+        user_scopes = payload.get("scopes", [])
+        logger.info(f"User scopes: {user_scopes}, Required scopes: {required_scopes}")
+        if not all(scope in user_scopes for scope in required_scopes):
+            raise HTTPException(
+                status_code=403,
+                detail="Insufficient permissions."
+            )
+        return payload
+    except Exception as e:
+        logger.error(f"JWT verification failed: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token."
+        )
 
 @app.get('/health-check')
 def health_check():
@@ -288,10 +313,11 @@ def post_headline(news: Union[News, NewsList]):
     return news
 
 @app.get("/news-report", status_code=200)
-def get_news_report():
+def get_news_report(dependencies: Annotated[dict, require_scopes(["read:news"])]):
     '''
     Gets the current news report.
     '''
+    return [{'status': 'ok'}]
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
     today = today.date()

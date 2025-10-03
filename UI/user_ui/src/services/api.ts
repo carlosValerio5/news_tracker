@@ -8,7 +8,14 @@ const getApiBase = () => {
 export const API_BASE = getApiBase();
 
 export const apiClient = {
-    get: (endpoint: string) => fetch(`${API_BASE}${endpoint}`),
+    get: (endpoint: string) => {
+        console.log(localStorage.getItem('auth_token'))
+        return fetch(`${API_BASE}${endpoint}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+    })},
     post: (endpoint: string, data: any) => fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: {

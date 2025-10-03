@@ -1,8 +1,11 @@
 from jose import jwt
-from datetime import datetime, timedelta
+from fastapi import HTTPException
+from datetime import datetime, timedelta, timezone
+from api.scopes import Scope
+from logger.logging_config import logger
 
-SECRET_KEY = "your_secret_key"
-ALGORITHM = "HS256"
+
+
 
 class JWTService:
     '''
@@ -22,7 +25,24 @@ class JWTService:
         payload = {
             "sub": user_info["sub"],  # Google user ID
             "email": user_info["email"],
-            "exp": datetime.now() + timedelta(hours=1),
+            "exp": datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            "scopes": []
         }
-        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         return token
+
+    def decode_jwt(self, token: str) -> dict:
+        '''
+        Decodes and verifies the JWT.
+
+        :param token: JWT string to decode.
+        '''
+        try:
+            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            return payload
+        except jwt.ExpiredSignatureError:
+            logger.error("Token has expired")
+            raise HTTPException(status_code=401, detail="Token has expired")
+        except jwt.JWTError as e:
+            logger.exception(f"Invalid token: {e}")
+            raise HTTPException(status_code=401, detail="Invalid token")
