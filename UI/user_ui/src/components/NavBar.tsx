@@ -1,13 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SearchBar from "./SearchBar";
 import RegisterButton from "./RegisterButton";
 import { Link } from "react-router";
 
 const NavBar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 0);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <nav className="w-full flex flex-col sm:flex-row items-center p-4 bg-white text-black relative">
+  <nav className={`w-full flex flex-col sm:flex-row items-center p-4 sticky top-0 z-50 transition-colors duration-300 ${scrolled ? 'bg-gray-100 text-black shadow-md' : 'bg-white text-black'}`}>
       {/* Logo and Hamburger */}
       <div className="w-full flex items-center justify-between sm:justify-start mb-2 sm:mb-0">
         <div className="text-sm sm:text-xl"><Link to="/">NewsTracker</Link></div>
