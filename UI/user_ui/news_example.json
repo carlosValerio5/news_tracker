@@ -1,0 +1,30 @@
+[
+    {
+        "headline": "Headline 1",
+        "summary": "Summary of the first news article.",
+        "url": "https://example.com/news1",
+        "peak_interest": 100,
+        "current_interest": 80
+    },
+    {
+        "headline": "Headline 2",
+        "summary": "Summary of the second news article.",
+        "url": "https://example.com/news2",
+        "peak_interest": 100,
+        "current_interest": 80
+    },
+    {
+        "headline": "Headline 3",
+        "summary": "Summary of the third news article.",
+        "url": "https://example.com/news3",
+        "peak_interest": 100,
+        "current_interest": 80
+    },
+    {
+        "headline": "Headline 4",
+        "summary": "Summary of the fourth news article.",
+        "url": "https://example.com/news4",
+        "peak_interest": 100,
+        "current_interest": 80
+    }
+]
