@@ -6,7 +6,7 @@ import type { Article } from '../types/news'
 import { isArticle } from '../types/news'
 
 function fetchNews() {
-  return apiClient.get('/admin/news-report');
+  return apiClient.get('/news-report');
 }
 
 
