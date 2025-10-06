@@ -317,7 +317,6 @@ def get_news_report(dependencies: Annotated[dict, require_scopes(["read:news"])]
     '''
     Gets the current news report.
     '''
-    return [{'status': 'ok'}]
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
     today = today.date()
