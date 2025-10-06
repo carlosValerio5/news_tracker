@@ -21,6 +21,7 @@ from logger.logging_config import logger
 from database import models
 from api.jwt_service import JWTService
 from api.auth_service import SecurityService
+from exceptions.auth_exceptions import UserNotFoundException, GoogleIDMismatchException
 
 app = FastAPI()
 security = HTTPBearer()
@@ -318,7 +319,7 @@ def post_headline(news: Union[News, NewsList]):
 
     return news
 
-@admin_router.get("/news-report", status_code=200)
+@app.get("/news-report", status_code=200)
 def get_news_report():
     '''
     Gets the current news report.
@@ -459,11 +460,46 @@ async def google_auth_callback(request: Request):
 
     try:
         user = DataBaseHelper.check_or_create_user(user_info, lambda: Session(engine), logger)
+    except GoogleIDMismatchException as e:
+        logger.error(f"Google ID and email mismatch: {e}")
+        return JSONResponse(status_code=400, content={"detail": str(e)})
     except Exception as e:
         logger.error(f"Failed to check or create user: {e}")
         return JSONResponse(status_code=500, content={"detail": "Failed to process user information."})
     app_jwt = jwt_service.create_app_jwt(user)
 
     return {"token": app_jwt}
+
+@admin_router.post("/")
+def create_admin_user(user_info: dict):
+    '''
+    Creates an admin user.
+
+    :param user_info: Dict containing user information (e.g., email).
+    '''
+    email = user_info.get("email")
+    if not email:
+        logger.error("Email is required to create admin user.")
+        raise HTTPException(status_code=400, detail="Email is required.")
+
+    session_factory = lambda: Session(engine)
+
+    try:
+        user = DataBaseHelper.create_admin(email, session_factory, logger)
+    except UserNotFoundException as e:
+        logger.error(f"User not found: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to check or create user: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process user information.")
+
+    return JSONResponse(status_code=201, content={"detail": f"User {user['email']} is now an admin."})
+
+@admin_router.get("/")
+def verify_admin():
+    '''
+    Verifies admin access.
+    '''
+    return JSONResponse(status_code=200, content={"detail": "Admin access verified."})
 
 app.include_router(admin_router)

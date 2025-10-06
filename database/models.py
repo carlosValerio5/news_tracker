@@ -102,6 +102,7 @@ class Users(Base):
     role = Column(CHAR, nullable=False)  # e.g., 'a', 'u'
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime)
+    google_id = Column(String, unique=True)
 
     Index(
         'idx_users_email'

@@ -43,6 +43,7 @@ class JWTService:
         scope = Scope.ADMIN if user_info.get("role") == 'a' else Scope.USER
 
         payload = {
+            "sub": user_info.get("google_id"),
             "email": user_info.get("email"),
             "exp": datetime.now(tz=timezone.utc) + timedelta(hours=1),
             "scopes": [scope]
