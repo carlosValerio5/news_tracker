@@ -1,10 +1,14 @@
 from jose import jwt
 from fastapi import HTTPException
 from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import select
 from api.scopes import Scope
 from logger.logging_config import logger
+from sqlalchemy.orm import Session
 
-
+from database.data_base import engine
+from database.models import Users
 
 
 class JWTService:
@@ -19,14 +23,29 @@ class JWTService:
     def create_app_jwt(self, user_info: dict) -> str:
         '''
         Creates a JWT for the authenticated user.
-        
-        :param user_info: Dictionary containing user information (e.g., email, sub).
+
+        :param user_info: User dict containing user information (e.g., email).
         '''
+        # stmt = select(Users).where(Users.email == user_info["email"])
+        # with Session(engine) as conn:
+            # result = conn.execute(stmt).scalars().first()
+            # if not result:
+                # logger.warning(f"User not found: {user_info['email']}")
+                # raise HTTPException(status_code=404, detail=f"User not found: {user_info['email']}")
+
+        # logger.info(f"User role: {result.role}")
+        # if result.role == 'a':
+            # user_scope = Scope.ADMIN
+
+        # else:
+            # user_scope = Scope.USER
+
+        scope = Scope.ADMIN if user_info.get("role") == 'a' else Scope.USER
+
         payload = {
-            "sub": user_info["sub"],  # Google user ID
-            "email": user_info["email"],
+            "email": user_info.get("email"),
             "exp": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-            "scopes": []
+            "scopes": [scope]
         }
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         return token

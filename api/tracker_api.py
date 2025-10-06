@@ -63,29 +63,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def require_scopes(required_scopes: list[str]):
-    def dependency(credentials: HTTPAuthorizationCredentials = Security(security)):
-        return verify_jwt_token(credentials, required_scopes=required_scopes)
-    return Depends(dependency)
-
-def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Security(security), required_scopes: list[str] = []) -> dict:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict:
+    """Get current user from JWT token"""
     try:
         payload = jwt_service.decode_jwt(credentials.credentials)
-        user_scopes = payload.get("scopes", [])
-        logger.info(f"User scopes: {user_scopes}, Required scopes: {required_scopes}")
-        if not all(scope in user_scopes for scope in required_scopes):
-            raise HTTPException(
-                status_code=403,
-                detail="Insufficient permissions."
-            )
         return payload
     except Exception as e:
         logger.error(f"JWT verification failed: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token."
-        )
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
+
+def require_scopes(*required_scopes: str):
+    """Factory for scope-checking dependencies"""
+    def check_scopes(user: dict = Depends(get_current_user)) -> dict:
+        user_scopes = user.get("scopes", [])
+        if not all(scope in user_scopes for scope in required_scopes):
+            logger.warning(f"Access denied. User scopes: {user_scopes}, Required: {required_scopes}")
+            raise HTTPException(status_code=403, detail="Insufficient permissions.")
+        return user
+    return check_scopes
+
+
+require_admin = require_scopes("a")
+require_read = require_scopes("u")
+
+
+admin_router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin)],
+)
 
 @app.get('/health-check')
 def health_check():
@@ -312,8 +318,8 @@ def post_headline(news: Union[News, NewsList]):
 
     return news
 
-@app.get("/news-report", status_code=200)
-def get_news_report(dependencies: Annotated[dict, require_scopes(["read:news"])]):
+@admin_router.get("/news-report", status_code=200)
+def get_news_report():
     '''
     Gets the current news report.
     '''
@@ -451,6 +457,13 @@ async def google_auth_callback(request: Request):
         logger.error(f"Failed to verify ID token: {e.detail}")
         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
-    app_jwt = jwt_service.create_app_jwt(user_info)
+    try:
+        user = DataBaseHelper.check_or_create_user(user_info, lambda: Session(engine), logger)
+    except Exception as e:
+        logger.error(f"Failed to check or create user: {e}")
+        return JSONResponse(status_code=500, content={"detail": "Failed to process user information."})
+    app_jwt = jwt_service.create_app_jwt(user)
 
     return {"token": app_jwt}
+
+app.include_router(admin_router)
