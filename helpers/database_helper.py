@@ -1,7 +1,10 @@
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
+from sqlalchemy import select 
 from logging import Logger
+
+from database.models import Users
 
 '''
 Module with class methods for data base operations
@@ -110,3 +113,41 @@ class DataBaseHelper:
             logger.exception('Connection to data base failed.', extra={'error':e})
             raise
 
+    @staticmethod
+    def check_or_create_user(user_info: dict, session_factory, logger):
+
+        stmt = select(Users).where(Users.email == user_info["email"])        
+        try:
+            with session_factory() as session:
+                result = session.execute(stmt).scalars().first()
+                if result:
+                    logger.info(f"User found: {user_info['email']}")
+                    return DataBaseHelper.orm_object_to_dict(result)
+
+                # User not found, create new user
+                insert_stmt = insert(Users).returning(Users).values({
+                    "email": user_info["email"],
+                    "role": "u"
+                })
+                new_user = session.execute(insert_stmt).scalars().first()
+                session.commit()
+                logger.info(f"Created new user: {user_info['email']}")
+                return DataBaseHelper.orm_object_to_dict(new_user)
+        except SQLAlchemyError as e:
+            logger.exception("Error checking or creating user.", extra={"error": e})
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error checking or creating user.", extra={"error": e})
+            raise
+
+    @staticmethod
+    def orm_object_to_dict(orm_object) -> dict:
+        '''
+        Converts a sqlalchemy orm object to a dictionary.
+
+        :param orm_object: The sqlalchemy orm object to convert.
+        '''
+        if not orm_object:
+            return {}
+
+        return {column.name: getattr(orm_object, column.name) for column in orm_object.__table__.columns}
