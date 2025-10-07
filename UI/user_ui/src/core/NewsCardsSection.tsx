@@ -15,6 +15,11 @@ function NewsCardsSection() {
 
   useEffect(() => {
     fetchNews().then(async response => {
+        if (!response) {
+          console.error('No response from API');
+          return;
+        }
+        console.log(response)
         if (!response.ok) throw new Error(`Failed to fetch news: ${response.statusText}`);
         const articles: Article[] = await response.json();
         setArticles(articles.filter(isArticle));

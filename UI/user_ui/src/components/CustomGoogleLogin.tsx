@@ -1,6 +1,7 @@
 import { useGoogleLogin } from '@react-oauth/google';
 import type { AuthPayload } from '../types/auth';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../env';
 
 
 function CustomGoogleLogin() {
@@ -9,7 +10,8 @@ function CustomGoogleLogin() {
     const googleLogin = useGoogleLogin({
         onSuccess: async ({code}) => {
             try {
-                const endpoint = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+                // Use the env wrapper which is test-friendly
+                const endpoint = (globalThis as any).__VITE_BACKEND_URL__ ?? API_BASE ?? 'http://localhost:8000';
                 const response = await fetch(`${endpoint}/auth/google/callback`,{
                 method: "POST",
                 body: JSON.stringify({code: code}),

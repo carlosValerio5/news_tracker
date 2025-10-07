@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import SearchBar from "./SearchBar";
 import RegisterButton from "./RegisterButton";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 
 const NavBar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
