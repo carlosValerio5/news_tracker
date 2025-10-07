@@ -34,10 +34,6 @@ class News(BaseModel):
 class NewsList(BaseModel):
     news: list[News]
 
-class AdminConfig(BaseModel):
-    target_email: str
-    summary_send_time: time
-    last_updated: datetime
 
 ORIGINS = [
     "http://localhost:5173",  # Vite dev server
@@ -325,77 +321,6 @@ def get_news_report():
     ]
 
     return news_report
-
-
-@app.get("/admin-config")
-def get_admin_config(id: Optional[int]=None, email: Optional[str]=None):
-    '''
-    Gets the admin config for a specific id.
-
-    :param id: Id of admin config.
-    '''
-    if id:
-        stmt = select(models.AdminConfig).filter(models.AdminConfig.id == id)
-
-    elif email:
-        stmt = select(models.AdminConfig).filter(models.AdminConfig.target_email == email)
-
-    try:
-        with Session(engine) as session:
-            results = session.execute(stmt).scalars().all()
-    except SQLAlchemyError:
-        logger.error('Failed to retrieve admin config data.')
-        raise
-
-    return [
-        {
-            "id": config.id,
-            "target_email": config.target_email,
-            "summary_send_time": config.summary_send_time,
-            "last_updated": config.last_updated,
-        }
-        for config in results
-    ]
-
-@app.post("/admin-config", status_code=201)
-def post_admin_config(config: AdminConfig):
-    '''
-    Posts an admin config entry to the database.
-
-    :param config: AdminConfig object containing config data to be inserted.
-    '''
-    # Validates there's only an @ symbol before the . symbol
-    if not re.match(r"[^@]+@[^@]+\.[^@]+", config.target_email):
-        logger.error("Wrong format for email.")
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid format for target email."
-        )
-
-    session_factory = lambda : Session(engine)
-
-    config_to_insert = models.AdminConfig(
-        target_email = config.target_email,
-        summary_send_time = config.summary_send_time,
-        last_updated = config.last_updated
-    )
-
-    try:
-        DataBaseHelper.write_orm_objects(config_to_insert, session_factory, logger)
-    except SQLAlchemyError:
-        logger.error("Failed to write objects to db.")
-        raise HTTPException(
-            status_code=501,
-            detail="Failed to write orm objects to data base."
-        )
-    except Exception:
-        logger.exception("Exception ocurred during data base write.")
-        raise HTTPException(
-            status_code=500,
-            detail="Unexpedted error ocurred."
-        )
-    
-    return config
 
 @app.post("/auth/google/callback")
 async def google_auth_callback(request: Request):
