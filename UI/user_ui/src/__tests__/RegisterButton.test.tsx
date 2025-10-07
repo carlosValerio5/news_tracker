@@ -1,13 +1,49 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
-import RegisterButton from '../components/RegisterButton';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 
-const renderWithRouter = (ui: React.ReactElement) => render(<BrowserRouter>{ui}</BrowserRouter>);
+// keep API mock available for consistency
+import * as mockApi from '../__mocks__/services/api';
+jest.mock('../services/api', () => mockApi);
 
-test('renders register button with default text and link', () => {
-  renderWithRouter(<RegisterButton />);
-  const btn = screen.getByRole('link', { name: /Register/i });
-  expect(btn).toBeInTheDocument();
-  expect(btn).toHaveAttribute('href', '/register');
+import RegisterButton, { ButtonType } from '../components/RegisterButton';
+
+describe('RegisterButton', () => {
+  test('renders default primary button as link to /register with default text', () => {
+    render(
+      <MemoryRouter>
+        <RegisterButton />
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link', { name: /Register/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/register');
+    // primary default should include p-3
+    expect(link.className).toContain('p-3');
+  });
+
+  test('renders secondary variant with smaller styles', () => {
+    render(
+      <MemoryRouter>
+        <RegisterButton type={ButtonType.SECONDARY as any} />
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link');
+    // secondary should use text-sm and p-2.5 according to component
+    expect(link.className).toContain('text-sm');
+    expect(link.className).toContain('p-2.5');
+  });
+
+  test('accepts custom text and className props', () => {
+    render(
+      <MemoryRouter>
+        <RegisterButton text="Join" className="custom-class" />
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link', { name: /Join/i });
+    expect(link).toBeInTheDocument();
+    expect(link.className).toContain('custom-class');
+  });
 });
