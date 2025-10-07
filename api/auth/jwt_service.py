@@ -1,3 +1,4 @@
+'''JWT service for creating and verifying JWTs.'''
 from jose import jwt
 from fastapi import HTTPException
 from datetime import datetime, timedelta, timezone
