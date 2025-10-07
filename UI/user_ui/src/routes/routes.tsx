@@ -4,7 +4,6 @@ import News from '../News';
 import SampleReport from '../SampleReport';
 import Register from '../core/RegisterPage';
 import Login from '../core/LoginPage';
-import SampleReport from '../SampleReport';
 
 
 export const router = createBrowserRouter([
