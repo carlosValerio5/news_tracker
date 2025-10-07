@@ -40,9 +40,6 @@ if (typeof (globalThis as any).fetch === 'undefined') {
     (globalThis as any).fetch = () => Promise.resolve(new (globalThis as any).Response('{}'));
 }
 
-// Provide a default Vite API endpoint for tests; tests can override via globalThis.__VITE_API_ENDPOINT__
-if (typeof (globalThis as any).__VITE_API_ENDPOINT__ === 'undefined') {
-    (globalThis as any).__VITE_API_ENDPOINT__ = '';
-}
 
-(globalThis as any).__VITE_GOOGLE_CLIENT_ID__ = 'test-client-id';
+;(globalThis as any).__VITE_API_ENDPOINT__ = 'http://localhost:8000';
+;(globalThis as any).__VITE_GOOGLE_CLIENT_ID__ = 'test-client-id';

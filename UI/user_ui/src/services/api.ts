@@ -1,7 +1,7 @@
 import { API_BASE } from '../env';
 
 
-const RUNTIME_API_BASE = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_ENDPOINT) || API_BASE || '';
+const RUNTIME_API_BASE = API_BASE;
 export const apiClient = {
     get: (endpoint: string) => {
         const headers: HeadersInit = {}; 
