@@ -1,27 +1,25 @@
 import re
-from typing import Annotated
 from os import getenv
-from fastapi import FastAPI, HTTPException, Security, APIRouter, Request, Depends
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, date, time
 from typing import Union, Optional
-from google.oauth2 import id_token
-from google.auth.transport import requests
 from dotenv import load_dotenv
 
+from api.routers.admin import admin_router
 from database.data_base import engine
 from helpers.database_helper import DataBaseHelper
 from logger.logging_config import logger 
 from database import models
-from api.jwt_service import JWTService
-from api.auth_service import SecurityService
-from exceptions.auth_exceptions import UserNotFoundException, GoogleIDMismatchException
+from api.auth.jwt_service import JWTService
+from api.auth.auth_service import SecurityService
+from exceptions.auth_exceptions import GoogleIDMismatchException
 
 app = FastAPI()
 security = HTTPBearer()
@@ -64,35 +62,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict:
-    """Get current user from JWT token"""
-    try:
-        payload = jwt_service.decode_jwt(credentials.credentials)
-        return payload
-    except Exception as e:
-        logger.error(f"JWT verification failed: {e}")
-        raise HTTPException(status_code=401, detail="Invalid or expired token.")
-
-def require_scopes(*required_scopes: str):
-    """Factory for scope-checking dependencies"""
-    def check_scopes(user: dict = Depends(get_current_user)) -> dict:
-        user_scopes = user.get("scopes", [])
-        if not all(scope in user_scopes for scope in required_scopes):
-            logger.warning(f"Access denied. User scopes: {user_scopes}, Required: {required_scopes}")
-            raise HTTPException(status_code=403, detail="Insufficient permissions.")
-        return user
-    return check_scopes
-
-
-require_admin = require_scopes("a")
-require_read = require_scopes("u")
-
-
-admin_router = APIRouter(
-    prefix="/admin",
-    tags=["admin"],
-    dependencies=[Depends(require_admin)],
-)
 
 @app.get('/health-check')
 def health_check():
@@ -470,36 +439,5 @@ async def google_auth_callback(request: Request):
 
     return {"token": app_jwt}
 
-@admin_router.post("/")
-def create_admin_user(user_info: dict):
-    '''
-    Creates an admin user.
-
-    :param user_info: Dict containing user information (e.g., email).
-    '''
-    email = user_info.get("email")
-    if not email:
-        logger.error("Email is required to create admin user.")
-        raise HTTPException(status_code=400, detail="Email is required.")
-
-    session_factory = lambda: Session(engine)
-
-    try:
-        user = DataBaseHelper.create_admin(email, session_factory, logger)
-    except UserNotFoundException as e:
-        logger.error(f"User not found: {e}")
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to check or create user: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process user information.")
-
-    return JSONResponse(status_code=201, content={"detail": f"User {user['email']} is now an admin."})
-
-@admin_router.get("/")
-def verify_admin():
-    '''
-    Verifies admin access.
-    '''
-    return JSONResponse(status_code=200, content={"detail": "Admin access verified."})
 
 app.include_router(admin_router)

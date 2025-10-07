@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
-from api.scopes import Scope
+from api.auth.scopes import Scope
 from logger.logging_config import logger
 from sqlalchemy.orm import Session
 
@@ -26,27 +26,20 @@ class JWTService:
 
         :param user_info: User dict containing user information (e.g., email).
         '''
-        # stmt = select(Users).where(Users.email == user_info["email"])
-        # with Session(engine) as conn:
-            # result = conn.execute(stmt).scalars().first()
-            # if not result:
-                # logger.warning(f"User not found: {user_info['email']}")
-                # raise HTTPException(status_code=404, detail=f"User not found: {user_info['email']}")
-
-        # logger.info(f"User role: {result.role}")
-        # if result.role == 'a':
-            # user_scope = Scope.ADMIN
-
-        # else:
-            # user_scope = Scope.USER
-
-        scope = Scope.ADMIN if user_info.get("role") == 'a' else Scope.USER
+        # Normalize role into the Scope enum. Accept either an enum member or the raw value.
+        role = user_info.get("role")
+        try:
+            # If role is already a Scope member this will work, or if it's the raw value (e.g. 'a'/'u')
+            scope = Scope(role)
+        except Exception:
+            # Fallback to USER when role is missing or invalid
+            scope = Scope.USER
 
         payload = {
             "sub": user_info.get("google_id"),
             "email": user_info.get("email"),
             "exp": datetime.now(tz=timezone.utc) + timedelta(hours=1),
-            "scopes": [scope]
+            "scopes": [scope.value]
         }
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         return token

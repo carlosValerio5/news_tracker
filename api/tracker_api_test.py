@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 from helpers.database_helper import DataBaseHelper
-from logger.logging_config import logger
 from api.tracker_api import app
 from unittest.mock import MagicMock
 
@@ -429,3 +428,12 @@ def test_post_admin_config_unexpected_error(mocker):
     response = client.post("/admin-config", json=payload)
     assert response.status_code == 500
     assert "Unexpedted error ocurred" in response.json()["detail"]
+def test_google_auth_callback_db_conflict(mocker):
+    from exceptions.auth_exceptions import GoogleIDMismatchException
+    mocker.patch('api.tracker_api.SecurityService.exchange_code_for_tokens', return_value={'id_token': 'fake'})
+    mocker.patch('api.tracker_api.SecurityService.verify_id_token', return_value={'email': 'x@example.com', 'sub': 'g123'})
+    mocker.patch('api.tracker_api.DataBaseHelper.check_or_create_user', side_effect=GoogleIDMismatchException('Conflict'))
+
+    response = client.post('/auth/google/callback', json={'code': 'abc'})
+    assert response.status_code == 400
+    assert 'Conflict' in response.json()['detail']
