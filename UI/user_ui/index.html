@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Vite will replace import.meta.env at build/dev time
+      window.__VITE_API_ENDPOINT__ = import.meta.env.VITE_API_ENDPOINT;
+      window.__VITE_GOOGLE_CLIENT_ID__ = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    </script>
     <title>user_ui</title>
   </head>
   <body>

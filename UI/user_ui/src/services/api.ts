@@ -1,27 +1,31 @@
-const getApiBase = () => {
-    if (import.meta.env.DEV) {
-        return '/api';
-    }
-    return import.meta.env.VITE_API_ENDPOINT;
-}
+import { API_BASE } from '../env';
 
-export const API_BASE = getApiBase();
 
+const RUNTIME_API_BASE = API_BASE;
 export const apiClient = {
-    get: (endpoint: string) => fetch(`${API_BASE}${endpoint}`),
-    post: (endpoint: string, data: any) => fetch(`${API_BASE}${endpoint}`, {
+    get: (endpoint: string) => {
+        const headers: HeadersInit = {}; 
+        if (localStorage.getItem('auth_token')) {
+            headers['Authorization'] = `Bearer ${localStorage.getItem('auth_token')}`;
+        }
+        return fetch(`${RUNTIME_API_BASE}${endpoint}`, {
+            method: 'GET',
+            headers: headers
+        });
+    },
+    post: (endpoint: string, data: any) => fetch(`${RUNTIME_API_BASE}${endpoint}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
     }),
-    put: (endpoint: string, data: any) => fetch(`${API_BASE}${endpoint}`, {
+    put: (endpoint: string, data: any) => fetch(`${RUNTIME_API_BASE}${endpoint}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     }),
-    delete: (endpoint: string) => fetch(`${API_BASE}${endpoint}`, {
+    delete: (endpoint: string) => fetch(`${RUNTIME_API_BASE}${endpoint}`, {
         method: 'DELETE'
     })
 }

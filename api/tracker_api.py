@@ -1,19 +1,28 @@
 import re
-from fastapi import FastAPI, HTTPException
+from os import getenv
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, date, time
 from typing import Union, Optional
-from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
+from api.routers.admin import admin_router
 from database.data_base import engine
 from helpers.database_helper import DataBaseHelper
 from logger.logging_config import logger 
 from database import models
+from api.auth.jwt_service import JWTService
+from api.auth.auth_service import SecurityService
+from exceptions.auth_exceptions import GoogleIDMismatchException
 
 app = FastAPI()
+security = HTTPBearer()
 
 class News(BaseModel):
     headline: str
@@ -25,15 +34,21 @@ class News(BaseModel):
 class NewsList(BaseModel):
     news: list[News]
 
-class AdminConfig(BaseModel):
-    target_email: str
-    summary_send_time: time
-    last_updated: datetime
 
 ORIGINS = [
     "http://localhost:5173",  # Vite dev server
     "http://localhost:4173",  # Vite preview server
 ]
+
+load_dotenv()
+GOOGLE_CLIENT_ID = getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = getenv("GOOGLE_CLIENT_SECRET")
+JWT_TOKEN = getenv("JWT_SECRET_KEY")
+
+jwt_service = JWTService(JWT_TOKEN, "HS256")
+
+
+security = HTTPBearer()
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +57,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get('/health-check')
 def health_check():
@@ -306,74 +322,47 @@ def get_news_report():
 
     return news_report
 
-
-@app.get("/admin-config")
-def get_admin_config(id: Optional[int]=None, email: Optional[str]=None):
-    '''
-    Gets the admin config for a specific id.
-
-    :param id: Id of admin config.
-    '''
-    if id:
-        stmt = select(models.AdminConfig).filter(models.AdminConfig.id == id)
-
-    elif email:
-        stmt = select(models.AdminConfig).filter(models.AdminConfig.target_email == email)
+@app.post("/auth/google/callback")
+async def google_auth_callback(request: Request):
+    data = await request.json()
+    code = data.get("code")
+    if not code:
+        logger.error("Missing authorization code in request.")
+        return JSONResponse(status_code=400, content={"detail": "Missing authorization code."})
 
     try:
-        with Session(engine) as session:
-            results = session.execute(stmt).scalars().all()
-    except SQLAlchemyError:
-        logger.error('Failed to retrieve admin config data.')
-        raise
-
-    return [
-        {
-            "id": config.id,
-            "target_email": config.target_email,
-            "summary_send_time": config.summary_send_time,
-            "last_updated": config.last_updated,
-        }
-        for config in results
-    ]
-
-@app.post("/admin-config", status_code=201)
-def post_admin_config(config: AdminConfig):
-    '''
-    Posts an admin config entry to the database.
-
-    :param config: AdminConfig object containing config data to be inserted.
-    '''
-    # Validates there's only an @ symbol before the . symbol
-    if not re.match(r"[^@]+@[^@]+\.[^@]+", config.target_email):
-        logger.error("Wrong format for email.")
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid format for target email."
+        tokens = SecurityService.exchange_code_for_tokens(
+            code,
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET,
+            redirect_uri="postmessage"
         )
+    except HTTPException as e:
+        logger.error(f"Failed to exchange code for tokens: {e.detail}")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
-    session_factory = lambda : Session(engine)
-
-    config_to_insert = models.AdminConfig(
-        target_email = config.target_email,
-        summary_send_time = config.summary_send_time,
-        last_updated = config.last_updated
-    )
+    id_token_str = tokens.get("id_token")
+    if not id_token_str:
+        logger.error("No ID token returned from Google.")
+        return JSONResponse(status_code=400, content={"detail": "No ID token returned from Google."})
 
     try:
-        DataBaseHelper.write_orm_objects(config_to_insert, session_factory, logger)
-    except SQLAlchemyError:
-        logger.error("Failed to write objects to db.")
-        raise HTTPException(
-            status_code=501,
-            detail="Failed to write orm objects to data base."
-        )
-    except Exception:
-        logger.exception("Exception ocurred during data base write.")
-        raise HTTPException(
-            status_code=500,
-            detail="Unexpedted error ocurred."
-        )
-    
-    return config
+        user_info = SecurityService.verify_id_token(id_token_str, GOOGLE_CLIENT_ID)
+    except HTTPException as e:
+        logger.error(f"Failed to verify ID token: {e.detail}")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
+    try:
+        user = DataBaseHelper.check_or_create_user(user_info, lambda: Session(engine), logger)
+    except GoogleIDMismatchException as e:
+        logger.error(f"Google ID and email mismatch: {e}")
+        return JSONResponse(status_code=400, content={"detail": str(e)})
+    except Exception as e:
+        logger.error(f"Failed to check or create user: {e}")
+        return JSONResponse(status_code=500, content={"detail": "Failed to process user information."})
+    app_jwt = jwt_service.create_app_jwt(user)
+
+    return {"token": app_jwt}
+
+
+app.include_router(admin_router)

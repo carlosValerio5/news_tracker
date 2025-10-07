@@ -1,7 +1,11 @@
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import text
+from sqlalchemy import func, text
+from sqlalchemy import select, update
 from logging import Logger
+
+from database.models import Users
+from exceptions.auth_exceptions import GoogleIDMismatchException, UserNotFoundException
 
 '''
 Module with class methods for data base operations
@@ -110,3 +114,81 @@ class DataBaseHelper:
             logger.exception('Connection to data base failed.', extra={'error':e})
             raise
 
+    @staticmethod
+    def check_or_create_user(user_info: dict, session_factory, logger):
+
+        stmt = select(Users).where(Users.google_id == user_info["sub"])
+        try:
+            with session_factory() as session:
+                user = session.execute(stmt).scalars().first()
+                if user:
+                    logger.info(f"User found: {user_info['sub']}")
+                    user.last_login = func.now()
+                    session.add(user)
+                    session.commit()
+                    session.refresh(user)
+                    return DataBaseHelper.orm_object_to_dict(user)
+    
+                stmt = select(Users).where(Users.email == user_info["email"])
+                existing_user = session.execute(stmt).scalars().first()
+                if existing_user:
+                    logger.error(f"Google ID and email mismatch: {user_info['email']}")
+                    raise GoogleIDMismatchException(f"Google ID and email mismatch: {user_info['email']}")
+
+
+                # User not found, create new user
+                insert_stmt = insert(Users).returning(Users).values({
+                    "google_id": user_info["sub"],
+                    "email": user_info["email"],
+                    "role": "u"
+                })
+                new_user = session.execute(insert_stmt).scalars().first()
+                session.commit()
+                logger.info(f"Created new user: {user_info['email']}")
+                return DataBaseHelper.orm_object_to_dict(new_user)
+        except SQLAlchemyError as e:
+            logger.exception("Error checking or creating user.", extra={"error": e})
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error checking or creating user.", extra={"error": e})
+            raise
+
+    @staticmethod
+    def orm_object_to_dict(orm_object) -> dict:
+        '''
+        Converts a sqlalchemy orm object to a dictionary.
+
+        :param orm_object: The sqlalchemy orm object to convert.
+        '''
+        if not orm_object:
+            return {}
+
+        return {column.name: getattr(orm_object, column.name) for column in orm_object.__table__.columns}
+
+    @staticmethod
+    def create_admin(email: str, session_factory, logger):
+        '''
+        Creates an admin user in the database.
+
+        :param email: Email address of the admin user.
+        :param session_factory: Factory method to create a data base connection.
+        :param logger: Logger object to handle logging logic.
+        '''
+        try:
+            with session_factory() as session:
+                stmt = update(Users).where(Users.email == email).values(role='a').returning(Users)
+                result = session.execute(stmt)
+                session.commit()
+                updated_user = result.scalars().first()
+                if updated_user:
+                    logger.info(f"User {email} promoted to admin.")
+                    return DataBaseHelper.orm_object_to_dict(updated_user)
+                else:
+                    logger.warning(f"User {email} not found.")
+                    raise UserNotFoundException(f"User {email} not found.")
+        except SQLAlchemyError as e:
+            logger.exception("Error promoting user to admin.", extra={"error": e})
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error promoting user to admin.", extra={"error": e})
+            raise

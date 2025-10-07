@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index, Time
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index, Time, CHAR
 from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped 
 '''Moduule defining news model'''
 
@@ -90,3 +90,21 @@ class AdminConfig(Base):
     target_email = Column(String, nullable=False)
     summary_send_time = Column(Time)
     last_updated = Column(DateTime)
+
+
+class Users(Base):
+    '''Users table, stores user information for authentication.'''
+
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    email = Column(String, nullable=False, unique=True)
+    name = Column(String)
+    role = Column(CHAR, nullable=False)  # e.g., 'a', 'u'
+    created_at = Column(DateTime, server_default=func.now())
+    last_login = Column(DateTime)
+    google_id = Column(String, unique=True)
+
+    Index(
+        'idx_users_email'
+        ,'email'
+    )
