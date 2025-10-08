@@ -6,15 +6,17 @@ from types import SimpleNamespace
 from jobs.worker.worker import HeadlineProcessService
 
 
-
-
 @pytest.fixture
 def mock_nlp():
     """
     Returns a fake spacy nlp function that yields fake tokens
     """
+
     def Token(text, lemma_, pos_, is_alpha):
-        return types.SimpleNamespace(text=text, lemma_=lemma_, pos_=pos_, is_alpha=is_alpha)
+        return types.SimpleNamespace(
+            text=text, lemma_=lemma_, pos_=pos_, is_alpha=is_alpha
+        )
+
     # 3 tokens, PROPN, NOUN, ADJ
     doc = [
         Token("Apple", "Apple", "PROPN", True),
