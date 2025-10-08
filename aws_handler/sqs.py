@@ -6,11 +6,18 @@ from exceptions.sqs_exceptions import NoSQSFoundException, SQSMessageBatchNotSen
 
 logger = logging.getLogger(__name__)
 
-'''sqs handler module containing bussiness logic for publishing and consuming sqs'''
+"""sqs handler module containing bussiness logic for publishing and consuming sqs"""
+
+
 class AwsHelper:
     """Publisher/helper class for SQS work and fallback handling."""
 
-    def __init__(self, queue_url: str, region_name: str = 'us-east-2', fallback_queue_url: str = None):
+    def __init__(
+        self,
+        queue_url: str,
+        region_name: str = "us-east-2",
+        fallback_queue_url: str = None,
+    ):
         """
         Initialize an SQS client.
 
@@ -26,114 +33,126 @@ class AwsHelper:
         try:
             self._SQS = self._get_service()
         except Exception as e:
-            logger.exception("Failed to retrieve sqs Client")
+            logger.exception("Failed to retrieve sqs Client", extra={"error": e})
             raise NoSQSFoundException
 
         try:
             # This gets the actual Queue resource for high-level send calls
-            self._QUEUE = boto3.resource('sqs', region_name=region_name).Queue(queue_url)
+            self._QUEUE = boto3.resource("sqs", region_name=region_name).Queue(
+                queue_url
+            )
         except Exception as e:
-            logger.exception(f'Failed to get queue resource: {e}')
+            logger.exception(f"Failed to get queue resource: {e}")
             raise
 
         if fallback_queue_url:
             try:
-                self._FALLBACK_QUEUE = boto3.resource('sqs', region_name=region_name).Queue(queue_url)
+                self._FALLBACK_QUEUE = boto3.resource(
+                    "sqs", region_name=region_name
+                ).Queue(queue_url)
             except Exception as e:
-                logger.exception(f'Failed to get fallback queue resource: {e}')
+                logger.exception(f"Failed to get fallback queue resource: {e}")
                 raise
-        
 
     def _get_service(self):
-        '''Get SQS queue'''
+        """Get SQS queue"""
 
         try:
-            client  = boto3.client('sqs', region_name='us-east-2')
+            client = boto3.client("sqs", region_name="us-east-2")
         except Exception as e:
-            print(f'Failed to retrieve service: {e}')
+            print(f"Failed to retrieve service: {e}")
             raise
 
         return client
 
-
     def send_message(self, headline: str):
-        '''
+        """
         Send a single message
-        
-        :param headline: The headline of the news article 
-        '''
+
+        :param headline: The headline of the news article
+        """
 
         try:
-            response = self._QUEUE.send_message(MessageBody=headline, MessageGroupId='headlines')
-            print(response['SequenceNumber'])
+            response = self._QUEUE.send_message(
+                MessageBody=headline, MessageGroupId="headlines"
+            )
+            print(response["SequenceNumber"])
         except Exception as e:
             print(f"Message could not be sent: {e}")
 
-    def send_batch(self, messages: list, message_group_id: str | None = None, transform_function = None, queue_url: str | None = None):
-        '''
+    def send_batch(
+        self,
+        messages: list,
+        message_group_id: str | None = None,
+        transform_function=None,
+        queue_url: str | None = None,
+    ):
+        """
         Send messages in batches of 10\
            
         :param headline: list containing all headlines
         :param message_group_id: Parameter required for FIFO queues, default None.
         :param transform_function: Function to transform payload into message format.
         :param queue_url: URL for target queue.
-        '''
+        """
         if not messages:
             return
-    
+
         max_batch_size = 10
         queue_url = queue_url or self.queue_url
-        
-        if not transform_function:
-            transform_function = lambda item: str(item)
 
-        batch= []
+        if not transform_function:
+
+            def transform_function(item):
+                return str(item)
+
+        batch = []
         for i, message in enumerate(messages):
-            item = {
-                "Id": str(i),
-                "MessageBody": transform_function(message)
-            }
+            item = {"Id": str(i), "MessageBody": transform_function(message)}
 
             if message_group_id:
-                item['MessageGroupId'] = message_group_id
+                item["MessageGroupId"] = message_group_id
 
             batch.append(item)
-            
+
             if len(batch) == max_batch_size:
                 try:
-                    self._send_batch_internal(queue_url, batch, i//max_batch_size)
+                    self._send_batch_internal(queue_url, batch, i // max_batch_size)
                 except SQSMessageBatchNotSent:
                     raise
                 batch = []
 
         if batch:
             try:
-                self._send_batch_internal(queue_url, batch, len(messages)//max_batch_size)
+                self._send_batch_internal(
+                    queue_url, batch, len(messages) // max_batch_size
+                )
             except SQSMessageBatchNotSent:
                 raise
 
-    def _send_batch_internal(self, queue_url: str, batch: list, batch_number: int, max_retries: int = 5):
-        '''
+    def _send_batch_internal(
+        self, queue_url: str, batch: list, batch_number: int, max_retries: int = 5
+    ):
+        """
         Internal helper to send entries to sqs.
-        
+
         :param queue_url:  URL of the target queue.
         :param batch: The batch to be sent to the message queue.
         :param batch_number: The number identifying the batch within an operation with several batches.
         :param max_retries: Maximum number of retries when sending to SQS fails, default = 5.
-        '''
+        """
         for i in range(max_retries):
             try:
-                self._SQS.send_message_batch(
-                    QueueUrl = queue_url,
-                    Entries=batch
-                )
+                self._SQS.send_message_batch(QueueUrl=queue_url, Entries=batch)
                 break
             except Exception:
-                logger.error(f'Batch {batch_number} could not be sent.')
+                logger.error(f"Batch {batch_number} could not be sent.")
         else:
             raise SQSMessageBatchNotSent
 
-    def poll_messages(self,max_messages: int = 10, wait_time: int = 10,visibility_timeout: int = 30) -> list[dict]:
+    def poll_messages(
+        self, max_messages: int = 10, wait_time: int = 10, visibility_timeout: int = 30
+    ) -> list[dict]:
         """
         Poll messages from the SQS queue using long polling.
 
@@ -145,42 +164,40 @@ class AwsHelper:
 
         try:
             response = self._SQS.receive_message(
-                QueueUrl = self.queue_url,
+                QueueUrl=self.queue_url,
                 MaxNumberOfMessages=max_messages,
                 WaitTimeSeconds=wait_time,
-                VisibilityTimeout=visibility_timeout
+                VisibilityTimeout=visibility_timeout,
             )
             messages = response.get("Messages", [])
             if messages:
                 logger.info(f"Fetched {len(messages)} messages from SQS")
             else:
                 logger.info("No messages available in the SQS queue.")
-            
+
             return messages
-        
+
         except NoCredentialsError:
-            logger.exception('Failed to retrieve credentials for aws.')
+            logger.exception("Failed to retrieve credentials for aws.")
             raise
         except (BotoCoreError, ClientError) as e:
             logger.exception(f"Error polling SQS queue: {e}")
             return []
-        
-    
+
     def delete_message_main_queue(self, receipt_handle: str, message_id: int):
         """
         Delete a single message from the SQS main queue.
-        
+
         :param receipt_handle: The SQS receipt handle from the message
         :param id: Id of the message deleted.
         """
 
         if not receipt_handle:
-            raise ValueError('Wrong format for receipt handle.')
+            raise ValueError("Wrong format for receipt handle.")
 
         try:
             self._SQS.delete_message(
-                QueueUrl=self.queue_url,
-                ReceiptHandle=receipt_handle
+                QueueUrl=self.queue_url, ReceiptHandle=receipt_handle
             )
             logger.info(f"Deleted message from SQS. Id: {message_id}")
         except (BotoCoreError, ClientError) as e:
@@ -195,17 +212,16 @@ class AwsHelper:
         """
 
         if not receipt_handle:
-            raise ValueError('Wrong format for receipt handle.')
+            raise ValueError("Wrong format for receipt handle.")
 
         try:
             self._SQS.delete_message(
-                QueueUrl=self.fallback_queue_url,
-                ReceiptHandle=receipt_handle
+                QueueUrl=self.fallback_queue_url, ReceiptHandle=receipt_handle
             )
             logger.info(f"Deleted message from SQS. Id: {message_id}")
         except (BotoCoreError, ClientError) as e:
             logger.exception(f"Error deleting SQS message: {e}")
-    
+
     def delete_messages_batch(self, messages: list, queue_url: str):
         """
         Delete a batch of messages from main SQS queue.
@@ -220,14 +236,14 @@ class AwsHelper:
             return
 
         entries = [
-            {"Id": msg.get('Id') or msg.get('MessageId'), "ReceiptHandle": msg["ReceiptHandle"]}
+            {
+                "Id": msg.get("Id") or msg.get("MessageId"),
+                "ReceiptHandle": msg["ReceiptHandle"],
+            }
             for msg in messages
         ]
         try:
-            resp = self._SQS.delete_message_batch(
-                QueueUrl=queue_url,
-                Entries=entries
-            )
+            resp = self._SQS.delete_message_batch(QueueUrl=queue_url, Entries=entries)
             if "Failed" in resp and resp["Failed"]:
                 logger.warning("Failed to delete some messages: %s", resp["Failed"])
             else:
@@ -248,13 +264,15 @@ class AwsHelper:
         batch = []
         for i, msg in enumerate(messages):
             body = msg.get("Body") or msg.get("MessageBody", "")
-            receipt_handle = msg.get('ReceiptHandle')
-            batch.append({
-                'Id': str(i),
-                'MessageBody': body,
-                'MessageGroupId': 'fallback',
-                'ReceiptHandle' : receipt_handle 
-            })
+            receipt_handle = msg.get("ReceiptHandle")
+            batch.append(
+                {
+                    "Id": str(i),
+                    "MessageBody": body,
+                    "MessageGroupId": "fallback",
+                    "ReceiptHandle": receipt_handle,
+                }
+            )
 
             if len(batch) == 10:
                 self._send_fallback_batch(batch)
@@ -266,47 +284,46 @@ class AwsHelper:
             self.delete_messages_batch(batch, self.queue_url)
 
     def send_message_to_fallback_queue(self, message: dict):
-        '''
+        """
         Sends a single message to the fallback queue
 
         :param message: dict object containing the message.
-        '''
+        """
         if not message:
-            raise ValueError('Message empty')
-        
+            raise ValueError("Message empty")
+
         body = json.dumps(message)
-        receipt_handle = message.get('ReceiptHandle')
-        message_id = message.get('MessageId', '')
+        receipt_handle = message.get("ReceiptHandle")
+        message_id = message.get("MessageId", "")
 
         if not receipt_handle:
-            raise ValueError('No receipt handle in this message.')
-        
+            raise ValueError("No receipt handle in this message.")
+
         try:
             self._SQS.send_message(
-                QueueUrl=self.fallback_queue_url, 
+                QueueUrl=self.fallback_queue_url,
                 MessageBody=body,
-                MessageGroupId='Fallback-Group'
-                )
+                MessageGroupId="Fallback-Group",
+            )
         except ClientError:
             raise
 
         try:
             self.delete_message_main_queue(receipt_handle, message_id)
         except ValueError:
-            raise 
+            raise
         except (BotoCoreError, ClientError):
             raise
 
     def _send_fallback_batch(self, batch: list[dict]):
-        '''
+        """
         Sends batches of maximum length 10 messages to the fallback queue
 
         :param batch: batch of messages to send to fallback queue.
-        '''
+        """
         try:
             self._SQS.send_message_batch(
-                QueueUrl = self.fallback_queue_url,
-                Entries=batch
+                QueueUrl=self.fallback_queue_url, Entries=batch
             )
             logger.info(f"Fallback batch of {len(batch)} messages sent.")
         except Exception as e:

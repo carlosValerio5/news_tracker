@@ -1,9 +1,17 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from datetime import datetime
-import os
 
-import jobs.trends.trends_scraper as scraper_mod  
+import jobs.trends.trends_scraper as scraper_mod
+import logger.logging_config as logger_mod
+
+
+def session_factory():
+    mock_session = MagicMock()
+    mock_session.__enter__.return_value = mock_session
+    mock_session.__exit__.return_value = None
+    return mock_session
+
 
 @pytest.fixture(autouse=True)
 def set_env_vars(monkeypatch):
@@ -29,13 +37,14 @@ def test_fetch_success(monkeypatch):
 
 def test_fetch_failure(monkeypatch, caplog):
     """Test TrendsAPI.fetch logs exception and returns None."""
+
     def fake_get(*args, **kwargs):
         raise scraper_mod.requests.RequestException("Network error")
 
     monkeypatch.setattr(scraper_mod.requests, "get", fake_get)
 
     api = scraper_mod.TrendsAPI("http://fake", "key")
-    with caplog.at_level(scraper_mod.logging.ERROR):
+    with caplog.at_level(logger_mod.logging.ERROR):
         result = api.fetch()
 
     assert result is None
@@ -80,19 +89,20 @@ def test_scrape_and_store_calls_store(monkeypatch):
     mock_api = MagicMock()
     mock_api.fetch.return_value = {
         "search_parameters": {"geo": "US"},
-        "trending_searches": [{
-            "query": "Trend X",
-            "start_timestamp": datetime(2025, 1, 1).timestamp(),
-            "search_volume": 150,
-            "increase_percentage": 20,
-            "categories": [{"name": "TestCat"}],
-        }],
+        "trending_searches": [
+            {
+                "query": "Trend X",
+                "start_timestamp": datetime(2025, 1, 1).timestamp(),
+                "search_volume": 150,
+                "increase_percentage": 20,
+                "categories": [{"name": "TestCat"}],
+            }
+        ],
     }
 
-    mock_session = MagicMock()
-    session_factory = lambda: mock_session
-
-    svc = scraper_mod.TrendsScraperService(api=mock_api, session_factory=session_factory)
+    svc = scraper_mod.TrendsScraperService(
+        api=mock_api, session_factory=session_factory
+    )
 
     monkeypatch.setattr(svc, "store_trends", MagicMock())
 
@@ -105,23 +115,26 @@ def test_scrape_and_store_calls_store(monkeypatch):
 
 def test_store_trends_executes_insert(monkeypatch):
     """Test store_trends executes insert with trends."""
-    trends_data = [{
-        "title": "Trend Y",
-        "start_timestamp": datetime(2025, 1, 1),
-        "search_volume": 50,
-        "increase_percentage": 10,
-        "category": "Cat",
-        "geo": "US",
-        "ranking": 1
-    }]
+    trends_data = [
+        {
+            "title": "Trend Y",
+            "start_timestamp": datetime(2025, 1, 1),
+            "search_volume": 50,
+            "increase_percentage": 10,
+            "category": "Cat",
+            "geo": "US",
+            "ranking": 1,
+        }
+    ]
 
-    mock_session = MagicMock()
-    mock_session.__enter__.return_value = mock_session
-    mock_session.__exit__.return_value = None
+    mock_session = session_factory()
 
-    session_factory = lambda: mock_session
+    def session_factory_internal():
+        return mock_session
 
-    svc = scraper_mod.TrendsScraperService(api=None, session_factory=session_factory)
+    svc = scraper_mod.TrendsScraperService(
+        api=None, session_factory=session_factory_internal
+    )
 
     # Patch insert to return a mock statement
     mock_stmt = MagicMock()
