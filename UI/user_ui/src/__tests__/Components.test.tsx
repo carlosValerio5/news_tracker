@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import * as mockApi from '../__mocks__/services/api'; // import the mocked apiClient
+import type { Article } from '../types/news';
 jest.mock('../services/api', () => mockApi);
 
 import Footer from '../components/Footer';
@@ -38,7 +39,7 @@ test('SubscribeStrip shows register link', () => {
 
 test('NewsReport mock renders', () => {
   const sample = [{ headline: 'H1', summary: 'S1', url: 'https://x', peak_interest: 10, current_interest: 5 }];
-  render(<NewsReport news={sample as any} />);
+  render(<NewsReport news={sample as Article[]} />);
   expect(screen.getByText('H1')).toBeInTheDocument();
   expect(screen.getByText('S1')).toBeInTheDocument();
   expect(screen.getByText(/Peak Interest: 10 \| Current Interest: 5/i)).toBeInTheDocument();

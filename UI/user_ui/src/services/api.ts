@@ -13,14 +13,14 @@ export const apiClient = {
             headers: headers
         });
     },
-    post: (endpoint: string, data: any) => fetch(`${RUNTIME_API_BASE}${endpoint}`, {
+    post: <TReq>(endpoint: string, data: TReq) => (fetch(`${RUNTIME_API_BASE}${endpoint}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
-    }),
-    put: (endpoint: string, data: any) => fetch(`${RUNTIME_API_BASE}${endpoint}`, {
+    })),
+    put: <TReq>(endpoint: string, data: TReq) => fetch(`${RUNTIME_API_BASE}${endpoint}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

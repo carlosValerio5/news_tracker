@@ -2,8 +2,6 @@
 function AdminDashboard() {
   return (
     <div>
-        <RegisterAdmin />
-        <EmailListing />
     </div>
   )
 }

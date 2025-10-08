@@ -1,7 +1,7 @@
 // Test-friendly env wrapper. Do NOT use `import.meta` here so TypeScript/ts-jest
 // can parse this file under CommonJS test settings.
 // In Vite runtime, main.tsx will set the corresponding global variables if needed.
-const g = globalThis as any;
+const g = globalThis;
 
 export const API_BASE: string = (
   // prefer an explicit runtime global (set in tests or by main.tsx in production)

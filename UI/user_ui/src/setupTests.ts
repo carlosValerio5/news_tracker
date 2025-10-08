@@ -1,18 +1,18 @@
 import '@testing-library/jest-dom';
+import { TextEncoder, TextDecoder } from 'util';
 
 // Polyfill TextEncoder/TextDecoder for environments where it's not defined (Node.js < 11 or some Jest configs)
-if (typeof (globalThis as any).TextEncoder === 'undefined') {
+if (typeof globalThis.TextEncoder === 'undefined') {
     // use Node's util if available
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const util = require('util');
-    (globalThis as any).TextEncoder = util.TextEncoder;
-    (globalThis as any).TextDecoder = util.TextDecoder;
+
+    globalThis.TextEncoder = TextEncoder as unknown as typeof globalThis.TextEncoder;
+    globalThis.TextDecoder = TextDecoder as unknown as typeof globalThis.TextDecoder;
 }
 
 // Provide a basic fetch mock to avoid accidental network calls in tests (tests can override with jest.fn())
-if (typeof (globalThis as any).fetch === 'undefined') {
+if (typeof globalThis.fetch === 'undefined') {
     // minimal Response shim
-    if (typeof (globalThis as any).Response === 'undefined') {
+    if (typeof globalThis.Response === 'undefined') {
         class SimpleResponse {
             body: string;
             constructor(body: string) {
@@ -35,11 +35,11 @@ if (typeof (globalThis as any).fetch === 'undefined') {
                 return 200;
             }
         }
-        (globalThis as any).Response = SimpleResponse;
+        (globalThis as { Response: new (body: string) => unknown }).Response = SimpleResponse;
     }
-    (globalThis as any).fetch = () => Promise.resolve(new (globalThis as any).Response('{}'));
+    globalThis.fetch = () => Promise.resolve(new globalThis.Response('{}'));
 }
 
 
-;(globalThis as any).__VITE_API_ENDPOINT__ = 'http://localhost:8000';
-;(globalThis as any).__VITE_GOOGLE_CLIENT_ID__ = 'test-client-id';
+globalThis.__VITE_API_ENDPOINT__ = 'http://localhost:8000';
+globalThis.__VITE_GOOGLE_CLIENT_ID__ = 'test-client-id';

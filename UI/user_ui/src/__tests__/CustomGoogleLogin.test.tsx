@@ -16,9 +16,9 @@ jest.mock('react-router-dom', () => {
 
 // Mock the Google hook to capture provided callbacks and simulate user action
 jest.mock('@react-oauth/google', () => ({
-  useGoogleLogin: (opts: any) => {
+  useGoogleLogin: (opts: Parameters<typeof import('@react-oauth/google').useGoogleLogin>[0]) => {
     // return a function that simulates the login flow by calling onSuccess
-    return () => opts.onSuccess({ code: 'test-code' });
+    return () => opts?.onSuccess?.({ code: 'test-code', scope: 'test-scope' });
   }
 }));
 
@@ -31,7 +31,7 @@ describe('CustomGoogleLogin', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     // default backend url for tests
-    (globalThis as any).__VITE_BACKEND_URL__ = 'http://localhost:9999';
+    globalThis.__VITE_API_ENDPOINT__ = 'http://localhost:9999';
     setItemSpy = jest.spyOn(Storage.prototype, 'setItem');
   });
 

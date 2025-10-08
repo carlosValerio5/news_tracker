@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { RegisterButtonProps } from '../components/RegisterButton';
 
 // Ensure the project's API mock is available (kept for consistency even if Hero doesn't call it)
 import * as mockApi from '../__mocks__/services/api';
@@ -8,7 +9,7 @@ jest.mock('../services/api', () => mockApi);
 // Mock RegisterButton so we can inspect the props passed by Hero
 jest.mock('../components/RegisterButton', () => ({
   __esModule: true,
-  default: (props: any) => <a data-testid="mock-register" {...props}>{props.text ?? 'Register'}</a>,
+  default: (props: RegisterButtonProps) => <a data-testid="mock-register" {...props}>{props.text ?? 'Register'}</a>,
   ButtonType: { PRIMARY: 'PRIMARY', SECONDARY: 'SECONDARY' }
 }));
 

@@ -7,7 +7,7 @@ export const ButtonType = {
 
 type ButtonType = keyof typeof ButtonType;
 
-interface RegisterButtonProps {
+export interface RegisterButtonProps {
     type?: ButtonType,
     text?: string,
     className?: string,

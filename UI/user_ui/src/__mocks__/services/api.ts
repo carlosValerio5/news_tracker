@@ -1,6 +1,8 @@
+import type { Article } from '../../types/news';
+
 export const API_BASE = '';
 
-const sampleArticles = [
+const sampleArticles: Article[] = [
   {
     headline: 'Headline 1',
     summary: 'Summary of the first news article.',
@@ -19,7 +21,7 @@ const sampleArticles = [
   }
 ];
 
-const makeResponse = (payload: any) => ({
+const makeResponse = (payload: Article[]) => ({
   ok: true,
   status: 200,
   json: async () => payload,
@@ -30,9 +32,9 @@ export const apiClient = {
     if (endpoint === '/news-report') {
       return Promise.resolve(makeResponse(sampleArticles));
     }
-    return Promise.resolve(makeResponse({}));
+    return Promise.resolve(makeResponse([]));
   }),
-  post: jest.fn(() => Promise.resolve(makeResponse({}))),
-  put: jest.fn(() => Promise.resolve(makeResponse({}))),
-  delete: jest.fn(() => Promise.resolve(makeResponse({}))),
+  post: jest.fn(() => Promise.resolve(makeResponse([]))),
+  put: jest.fn(() => Promise.resolve(makeResponse([]))),
+  delete: jest.fn(() => Promise.resolve(makeResponse([]))),
 };

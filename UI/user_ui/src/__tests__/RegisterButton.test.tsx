@@ -25,7 +25,7 @@ describe('RegisterButton', () => {
   test('renders secondary variant with smaller styles', () => {
     render(
       <MemoryRouter>
-        <RegisterButton type={ButtonType.SECONDARY as any} />
+        <RegisterButton type={ButtonType.SECONDARY} />
       </MemoryRouter>
     );
 
