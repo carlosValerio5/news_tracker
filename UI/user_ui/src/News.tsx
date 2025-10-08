@@ -1,15 +1,15 @@
-import NavBar from './components/NavBar'
-import Footer from './components/Footer'
-import NewsCardsSection from './core/NewsCardsSection'
+import NavBar from "./components/NavBar";
+import Footer from "./components/Footer";
+import NewsCardsSection from "./core/NewsCardsSection";
 
 function News() {
   return (
     <div>
-        <NavBar />
-        <NewsCardsSection />
-        <Footer />
+      <NavBar />
+      <NewsCardsSection />
+      <Footer />
     </div>
-  )
+  );
 }
 
-export default News
+export default News;

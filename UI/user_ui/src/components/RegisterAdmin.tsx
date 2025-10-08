@@ -1,9 +1,7 @@
-import React from 'react'
+import React from "react";
 
 function RegisterAdmin() {
-  return (
-    <div>RegisterAdmin</div>
-  )
+  return <div>RegisterAdmin</div>;
 }
 
-export default RegisterAdmin
+export default RegisterAdmin;
