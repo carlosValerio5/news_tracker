@@ -1,3 +1,3 @@
 export interface AuthPayload {
-    token: string;
+  token: string;
 }

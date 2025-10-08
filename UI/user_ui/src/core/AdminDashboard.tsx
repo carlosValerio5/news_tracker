@@ -1,11 +1,5 @@
-
 function AdminDashboard() {
-  return (
-    <div>
-        <RegisterAdmin />
-        <EmailListing />
-    </div>
-  )
+  return <div></div>;
 }
 
-export default AdminDashboard
+export default AdminDashboard;

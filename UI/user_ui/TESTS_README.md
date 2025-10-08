@@ -4,7 +4,7 @@ What's included
 
 - jest.config.cjs: Jest configuration using ts-jest and jsdom.
 - src/setupTests.ts: jest-dom setup.
-- src/__tests__/: basic unit tests for NavBar, RegisterButton and LatestNewsSection.
+- src/**tests**/: basic unit tests for NavBar, RegisterButton and LatestNewsSection.
 - tsconfig.test.json: TypeScript configuration for tests (includes jest types).
 
 Install and run tests (locally on your machine)
