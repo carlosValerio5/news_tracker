@@ -4,6 +4,7 @@ import News from '../News';
 import SampleReport from '../SampleReport';
 import Register from '../core/RegisterPage';
 import Login from '../core/LoginPage';
+import AdminDashboard from '../core/AdminDashboard';
 
 
 export const router = createBrowserRouter([
@@ -30,5 +31,9 @@ export const router = createBrowserRouter([
   {
     path: '/report-sample',
     element: <SampleReport />
+  },
+  {
+    path: '/admin/dashboard',
+    element: <AdminDashboard />
   }
 ]);

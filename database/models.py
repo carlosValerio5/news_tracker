@@ -1,14 +1,31 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, MetaData, func, Numeric, Boolean, Date, Computed, Index, Time, CHAR
-from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped 
-'''Moduule defining news model'''
+from sqlalchemy import (
+    Column,
+    String,
+    DateTime,
+    Integer,
+    ForeignKey,
+    MetaData,
+    func,
+    Numeric,
+    Boolean,
+    Date,
+    Computed,
+    Index,
+    Time,
+    CHAR,
+)
+from sqlalchemy.orm import declarative_base, relationship, mapped_column, Mapped
 
-meta = MetaData(schema='news_schema')
+"""Moduule defining news model"""
+
+meta = MetaData(schema="news_schema")
 Base = declarative_base(metadata=meta)
 
-class News(Base):
-    '''News model'''
 
-    __tablename__ = 'news'
+class News(Base):
+    """News model"""
+
+    __tablename__ = "news"
     id = Column(Integer, primary_key=True)
     headline = Column(String, nullable=False)
     url = Column(String, nullable=False)
@@ -16,62 +33,61 @@ class News(Base):
     published_at = Column(DateTime, nullable=False)
     summary = Column(String)
 
-    keywords_id: Mapped[int] = mapped_column(ForeignKey('articlekeywords.id'))
-    keywords: Mapped['ArticleKeywords'] = relationship(back_populates='news_article')
+    keywords_id: Mapped[int] = mapped_column(ForeignKey("articlekeywords.id"))
+    keywords: Mapped["ArticleKeywords"] = relationship(back_populates="news_article")
 
-    Index(
-        'uq_news_url_headline'
-        ,'url'
-        , 'headline'
-        ,unique = True
-    )
+    Index("uq_news_url_headline", "url", "headline", unique=True)
 
 
 class DailyTrends(Base):
-    '''Daily trends from google trends'''
+    """Daily trends from google trends"""
 
-    __tablename__ = 'dailytrends'
+    __tablename__ = "dailytrends"
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     ranking = Column(Integer)
     geo = Column(String, nullable=False)
     start_timestamp = Column(DateTime, nullable=False)
-    search_volume = Column(Integer, nullable = False)
-    increase_percentage = Column(Integer, nullable = False)
+    search_volume = Column(Integer, nullable=False)
+    increase_percentage = Column(Integer, nullable=False)
     category = Column(String)
     scraped_at = Column(DateTime, server_default=func.now())
 
-class ArticleKeywords(Base):
-    '''Processed headlines separated into keywords'''
 
-    __tablename__ = 'articlekeywords'
+class ArticleKeywords(Base):
+    """Processed headlines separated into keywords"""
+
+    __tablename__ = "articlekeywords"
     id = Column(Integer, primary_key=True)
     keyword_1 = Column(String, nullable=False)
     keyword_2 = Column(String)
     keyword_3 = Column(String)
     extraction_confidence = Column(Numeric(3, 2))
     extracted_at = Column(DateTime, server_default=func.now())
-    composed_query = Column(String, Computed(
-        "lower(coalesce(keyword_1, '')) || '|' || lower(coalesce(keyword_2, '')) || '|' || lower(coalesce(keyword_3, ''))", persisted=True
-        ))
-
-    Index (
-        'uq_composed_query',
-        'composed_query',
-        unique=True
+    composed_query = Column(
+        String,
+        Computed(
+            "lower(coalesce(keyword_1, '')) || '|' || lower(coalesce(keyword_2, '')) || '|' || lower(coalesce(keyword_3, ''))",
+            persisted=True,
+        ),
     )
 
-    news_article: Mapped['News'] = relationship(back_populates='keywords')
-    trends_result: Mapped['TrendsResults'] = relationship(back_populates='article_keyword')
+    Index("uq_composed_query", "composed_query", unique=True)
+
+    news_article: Mapped["News"] = relationship(back_populates="keywords")
+    trends_result: Mapped["TrendsResults"] = relationship(
+        back_populates="article_keyword"
+    )
+
 
 class TrendsResults(Base):
-    '''Popularity results for extracted keywords'''
+    """Popularity results for extracted keywords"""
 
-    __tablename__ = 'trendsresults'
+    __tablename__ = "trendsresults"
     id = Column(Integer, primary_key=True)
     has_data = Column(Boolean, nullable=False)
     peak_interest = Column(Integer)
-    avg_interest = Column(Numeric(5,2))
+    avg_interest = Column(Numeric(5, 2))
     current_interest = Column(Integer, nullable=False)
     data_collected_at = Column(DateTime, nullable=False, server_default=func.now())
     data_period_start = Column(Date)
@@ -79,13 +95,16 @@ class TrendsResults(Base):
     updated_at = Column(DateTime, server_default=func.now())
     geo = Column(String)
 
-    article_keywords_id: Mapped[int] = mapped_column(ForeignKey('articlekeywords.id')) 
-    article_keyword: Mapped['ArticleKeywords'] = relationship(back_populates="trends_result")
+    article_keywords_id: Mapped[int] = mapped_column(ForeignKey("articlekeywords.id"))
+    article_keyword: Mapped["ArticleKeywords"] = relationship(
+        back_populates="trends_result"
+    )
+
 
 class AdminConfig(Base):
-    '''Admin configuration table, stores configuration for email recipients.'''
+    """Admin configuration table, stores configuration for email recipients."""
 
-    __tablename__ = 'adminconfig'
+    __tablename__ = "adminconfig"
     id = Column(Integer, primary_key=True)
     target_email = Column(String, nullable=False)
     summary_send_time = Column(Time)
@@ -93,9 +112,9 @@ class AdminConfig(Base):
 
 
 class Users(Base):
-    '''Users table, stores user information for authentication.'''
+    """Users table, stores user information for authentication."""
 
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     email = Column(String, nullable=False, unique=True)
     name = Column(String)
@@ -104,7 +123,4 @@ class Users(Base):
     last_login = Column(DateTime)
     google_id = Column(String, unique=True)
 
-    Index(
-        'idx_users_email'
-        ,'email'
-    )
+    Index("idx_users_email", "email")

@@ -1,4 +1,5 @@
-'''Admin Router for User Management'''
+"""Admin Router for User Management"""
+
 import os
 import re
 from datetime import datetime, time
@@ -23,20 +24,27 @@ from api.auth.jwt_service import JWTService
 load_dotenv()
 security = HTTPBearer()
 
-jwt_secret = os.getenv('JWT_SECRET_KEY')
-jwt_algorithm = os.getenv('JWT_ALGORITHM', 'HS256')
+jwt_secret = os.getenv("JWT_SECRET_KEY")
+jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
 
-jwt_service = JWTService(
-    secret_key=jwt_secret,
-    algorithm=jwt_algorithm
-)
+
+def session_factory():
+    """Factory to create new SQLAlchemy sessions"""
+    return Session(engine)
+
+
+jwt_service = JWTService(secret_key=jwt_secret, algorithm=jwt_algorithm)
+
 
 class AdminConfig(BaseModel):
     target_email: str
     summary_send_time: time
     last_updated: datetime
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict:
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+) -> dict:
     """Get current user from JWT token"""
     try:
         payload = jwt_service.decode_jwt(credentials.credentials)
@@ -45,14 +53,19 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         logger.error(f"JWT verification failed: {e}")
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
+
 def require_scopes(*required_scopes: str):
     """Factory for scope-checking dependencies"""
+
     def check_scopes(user: dict = Depends(get_current_user)) -> dict:
         user_scopes = user.get("scopes", [])
         if not all(scope in user_scopes for scope in required_scopes):
-            logger.warning(f"Access denied. User scopes: {user_scopes}, Required: {required_scopes}")
+            logger.warning(
+                f"Access denied. User scopes: {user_scopes}, Required: {required_scopes}"
+            )
             raise HTTPException(status_code=403, detail="Insufficient permissions.")
         return user
+
     return check_scopes
 
 
@@ -66,19 +79,18 @@ admin_router = APIRouter(
     dependencies=[Depends(require_admin)],
 )
 
+
 @admin_router.post("/")
 def create_admin_user(user_info: dict):
-    '''
+    """
     Creates an admin user.
 
     :param user_info: Dict containing user information (e.g., email).
-    '''
+    """
     email = user_info.get("email")
     if not email:
         logger.error("Email is required to create admin user.")
         raise HTTPException(status_code=400, detail="Email is required.")
-
-    session_factory = lambda: Session(engine)
 
     try:
         user = DataBaseHelper.create_admin(email, session_factory, logger)
@@ -87,35 +99,43 @@ def create_admin_user(user_info: dict):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to check or create user: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process user information.")
+        raise HTTPException(
+            status_code=500, detail="Failed to process user information."
+        )
 
-    return JSONResponse(status_code=201, content={"detail": f"User {user['email']} is now an admin."})
+    return JSONResponse(
+        status_code=201, content={"detail": f"User {user['email']} is now an admin."}
+    )
+
 
 @admin_router.get("/")
 def verify_admin():
-    '''
+    """
     Verifies admin access.
-    '''
+    """
     return JSONResponse(status_code=200, content={"detail": "Admin access verified."})
 
+
 @admin_router.get("/admin-config")
-def get_admin_config(id: Optional[int]=None, email: Optional[str]=None):
-    '''
+def get_admin_config(id: Optional[int] = None, email: Optional[str] = None):
+    """
     Gets the admin config for a specific id.
 
     :param id: Id of admin config.
-    '''
+    """
     if id:
         stmt = select(models.AdminConfig).filter(models.AdminConfig.id == id)
 
     elif email:
-        stmt = select(models.AdminConfig).filter(models.AdminConfig.target_email == email)
+        stmt = select(models.AdminConfig).filter(
+            models.AdminConfig.target_email == email
+        )
 
     try:
         with Session(engine) as session:
             results = session.execute(stmt).scalars().all()
     except SQLAlchemyError:
-        logger.error('Failed to retrieve admin config data.')
+        logger.error("Failed to retrieve admin config data.")
         raise
 
     return [
@@ -128,27 +148,23 @@ def get_admin_config(id: Optional[int]=None, email: Optional[str]=None):
         for config in results
     ]
 
+
 @admin_router.post("/admin-config", status_code=201)
 def post_admin_config(config: AdminConfig):
-    '''
+    """
     Posts an admin config entry to the database.
 
     :param config: AdminConfig object containing config data to be inserted.
-    '''
+    """
     # Validates there's only an @ symbol before the . symbol
     if not re.match(r"[^@]+@[^@]+\.[^@]+", config.target_email):
         logger.error("Wrong format for email.")
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid format for target email."
-        )
-
-    session_factory = lambda : Session(engine)
+        raise HTTPException(status_code=400, detail="Invalid format for target email.")
 
     config_to_insert = models.AdminConfig(
-        target_email = config.target_email,
-        summary_send_time = config.summary_send_time,
-        last_updated = config.last_updated
+        target_email=config.target_email,
+        summary_send_time=config.summary_send_time,
+        last_updated=config.last_updated,
     )
 
     try:
@@ -156,14 +172,10 @@ def post_admin_config(config: AdminConfig):
     except SQLAlchemyError:
         logger.error("Failed to write objects to db.")
         raise HTTPException(
-            status_code=501,
-            detail="Failed to write orm objects to data base."
+            status_code=501, detail="Failed to write orm objects to data base."
         )
     except Exception:
         logger.exception("Exception ocurred during data base write.")
-        raise HTTPException(
-            status_code=500,
-            detail="Unexpedted error ocurred."
-        )
-    
+        raise HTTPException(status_code=500, detail="Unexpedted error ocurred.")
+
     return config
