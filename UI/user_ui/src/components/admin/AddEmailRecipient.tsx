@@ -86,7 +86,7 @@ export default function AddEmailRecipient({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@example.com"
+            placeholder="email@example.com"
             aria-invalid={error ? "true" : "false"}
             className={`flex-1 px-3 py-2 rounded-md border border-border-color bg-light text-text-principal placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-dark/30`}
           />
