@@ -3,6 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, text
 from sqlalchemy import select, update
 from logging import Logger
+from typing import Callable
 
 from database.models import Users
 from exceptions.auth_exceptions import GoogleIDMismatchException, UserNotFoundException
@@ -233,4 +234,45 @@ class DataBaseHelper:
             logger.exception(
                 "Unexpected error promoting user to admin.", extra={"error": e}
             )
+            raise
+
+    @staticmethod
+    def upsert_orm_object(
+        object_type,
+        unique_field: str,
+        object_to_upsert: dict,
+        session_factory: Callable,
+        logger,
+    ):
+        """
+        Upserts a single sqlalchemy object to db based on the unique field.
+
+        :param object_type: The class which is mapped to the data base table
+        :param unique_field: The field name that is unique in the table.
+        :param object_to_upsert: Single object to upsert.
+        :param session_factory: Factory function to create a data base session.
+        :param logger: Logger object to handle logging logic.
+        """
+        try:
+            with session_factory() as session:
+                stmt = (
+                    insert(object_type)
+                    .values(object_to_upsert)
+                    .on_conflict_do_update(
+                        index_elements=[getattr(object_type, unique_field)],
+                        set_={
+                            k: v
+                            for k, v in object_to_upsert.items()
+                            if k != unique_field
+                        },  # avoid updating the unique field
+                    )
+                )
+                session.execute(stmt)
+                session.commit()
+
+        except SQLAlchemyError as e:
+            logger.exception("Failed to write object to db", extra={"error": str(e)})
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error occurred", extra={"error": str(e)})
             raise
