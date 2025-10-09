@@ -161,16 +161,22 @@ def post_admin_config(config: AdminConfig):
         logger.error("Wrong format for email.")
         raise HTTPException(status_code=400, detail="Invalid format for target email.")
 
-    config_to_insert = models.AdminConfig(
-        target_email=config.target_email,
-        summary_send_time=config.summary_send_time,
-        last_updated=config.last_updated,
-    )
+    config_to_insert = {
+        "target_email": config.target_email,
+        "summary_send_time": config.summary_send_time,
+        "last_updated": config.last_updated,
+    }
 
     try:
-        DataBaseHelper.write_orm_objects(config_to_insert, session_factory, logger)
+        DataBaseHelper.upsert_orm_object(
+            models.AdminConfig,
+            "target_email",
+            config_to_insert,
+            session_factory,
+            logger,
+        )
     except SQLAlchemyError:
-        logger.error("Failed to write objects to db.")
+        logger.exception("Failed to write objects to db.")
         raise HTTPException(
             status_code=501, detail="Failed to write orm objects to data base."
         )
