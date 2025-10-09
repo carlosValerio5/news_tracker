@@ -2,7 +2,7 @@
 
 -- DROP DATABASE IF EXISTS news_tracker;
 
-CREATE DATABASE IF NOT EXISTS news_tracker
+CREATE DATABASE news_tracker
     WITH
     OWNER = postgres
     ENCODING = 'UTF8'
@@ -11,7 +11,9 @@ CREATE DATABASE IF NOT EXISTS news_tracker
     LOCALE_PROVIDER = 'libc'
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1
-    IS_TEMPLATE = False;- SCHEMA: news_schema
+    IS_TEMPLATE = False;
+    
+-- SCHEMA: news_schema
 
 -- DROP SCHEMA IF EXISTS news_schema ;
 
@@ -57,11 +59,12 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_last_updated
     (last_updated ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
--- Index: idx_target_email
 
--- DROP INDEX IF EXISTS news_schema.idx_target_email;
+-- Index: uq_adminconfig_target_email
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_target_email
+-- DROP INDEX IF EXISTS news_schema.uq_adminconfig_target_email;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_adminconfig_target_email
     ON news_schema.adminconfig USING btree
     (target_email COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
@@ -97,7 +100,6 @@ CREATE TABLE IF NOT EXISTS news_schema.articlekeywords
     keyword_1 text COLLATE pg_catalog."default" NOT NULL,
     keyword_2 text COLLATE pg_catalog."default",
     keyword_3 text COLLATE pg_catalog."default",
-    composed_query text COLLATE pg_catalog."default" NOT NULL,
     extraction_confidence numeric(3,2),
     extracted_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     composed_query text COLLATE pg_catalog."default" GENERATED ALWAYS AS (((((lower(COALESCE(keyword_1, ''::text)) || '|'::text) || lower(COALESCE(keyword_2, ''::text))) || '|'::text) || lower(COALESCE(keyword_3, ''::text)))) STORED,
@@ -336,3 +338,61 @@ ALTER SEQUENCE news_schema.trendsresults_id_seq
 
 ALTER SEQUENCE news_schema.trendsresults_id_seq
     OWNER TO postgres;
+
+
+-- SEQUENCE: news_schema.users_id_seq
+
+-- DROP SEQUENCE IF EXISTS news_schema.users_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS news_schema.users_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+-- Table: news_schema.users
+
+-- DROP TABLE IF EXISTS news_schema.users;
+
+CREATE TABLE IF NOT EXISTS news_schema.users
+(
+    id integer NOT NULL DEFAULT nextval('news_schema.users_id_seq'::regclass),
+    email text COLLATE pg_catalog."default" NOT NULL,
+    name text COLLATE pg_catalog."default",
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    last_login timestamp without time zone,
+    role character(1) COLLATE pg_catalog."default",
+    google_id text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    CONSTRAINT users_email_key UNIQUE (email)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS news_schema.users
+    OWNER to postgres;
+
+ALTER SEQUENCE news_schema.users_id_seq
+    OWNED BY news_schema.users.id;
+
+ALTER SEQUENCE news_schema.users_id_seq
+    OWNER TO postgres;
+-- Index: idx_users_email
+
+-- DROP INDEX IF EXISTS news_schema.idx_users_email;
+
+CREATE INDEX IF NOT EXISTS idx_users_email
+    ON news_schema.users USING btree
+    (email COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: uq_users_google_id
+
+-- DROP INDEX IF EXISTS news_schema.uq_users_google_id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_google_id
+    ON news_schema.users USING btree
+    (google_id COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
