@@ -13,7 +13,7 @@ function Card({ newsEntry }: { newsEntry: NewsEntry }) {
     p-5 py-10 flex flex-col 
     justify-between mb-5 ml-1.5 
     mr-0 shadow-xl min-w-[200px] 
-    h-[250px] sm:h-[300px] sm:min-w-[300px] sm:max-w-[350px]
+    h-[250px] sm:h-[300px] sm:min-w-[300px] sm:max-w-[500px]
     rounded-2xl
     "
     >

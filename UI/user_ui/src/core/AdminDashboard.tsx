@@ -40,7 +40,7 @@ function AdminDashboard() {
 
     // initial check
     check();
-    // Interval set to 1 hour (3,600,000 ms) 
+    // Interval set to 1 hour (3,600,000 ms)
     const id = setInterval(check, 3_600_000);
     return () => {
       mounted = false;
