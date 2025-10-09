@@ -12,22 +12,47 @@ export const apiClient = {
       headers: headers,
     });
   },
-  post: <TReq>(endpoint: string, data: TReq) =>
-    fetch(`${RUNTIME_API_BASE}${endpoint}`, {
+  post: async <TReq>(endpoint: string, data: TReq) => {
+    const headers: HeadersInit = {};
+    if (localStorage.getItem("auth_token")) {
+      headers["Authorization"] = `Bearer ${localStorage.getItem("auth_token")}`;
+    }
+    headers["Content-Type"] = "application/json";
+
+    const response = await fetch(`${RUNTIME_API_BASE}${endpoint}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: headers,
       body: JSON.stringify(data),
-    }),
-  put: <TReq>(endpoint: string, data: TReq) =>
-    fetch(`${RUNTIME_API_BASE}${endpoint}`, {
+    });
+
+    return response;
+  },
+  put: async <TReq>(endpoint: string, data: TReq) => {
+    const headers: HeadersInit = {};
+    if (localStorage.getItem("auth_token")) {
+      headers["Authorization"] = `Bearer ${localStorage.getItem("auth_token")}`;
+    }
+    headers["Content-Type"] = "application/json";
+
+    const response = await fetch(`${RUNTIME_API_BASE}${endpoint}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
       body: JSON.stringify(data),
-    }),
-  delete: (endpoint: string) =>
-    fetch(`${RUNTIME_API_BASE}${endpoint}`, {
+    });
+
+    return response;
+  },
+  delete: async (endpoint: string) => {
+    const headers: HeadersInit = {};
+    if (localStorage.getItem("auth_token")) {
+      headers["Authorization"] = `Bearer ${localStorage.getItem("auth_token")}`;
+    }
+
+    const response = await fetch(`${RUNTIME_API_BASE}${endpoint}`, {
       method: "DELETE",
-    }),
+      headers: headers,
+    });
+
+    return response;
+  },
 };
