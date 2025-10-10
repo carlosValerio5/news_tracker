@@ -14,7 +14,6 @@ const stats: Stat[] = [
   { label: "Active Users", value: 1284, diff: 4.2 },
   { label: "New Signups", value: 57, diff: 1.1 },
   { label: "Reports Generated", value: 312, diff: 8.5 },
-  { label: "Pending Requests", value: 6, diff: -2.0 },
 ];
 
 function AdminDashboard() {
@@ -85,7 +84,7 @@ function AdminDashboard() {
         {/* Stats Grid */}
         <section
           aria-labelledby="stats-heading"
-          className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+          className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
         >
           <h2 id="stats-heading" className="sr-only">
             Key Metrics
