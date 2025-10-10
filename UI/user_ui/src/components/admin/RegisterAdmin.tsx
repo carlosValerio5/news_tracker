@@ -8,7 +8,7 @@ export default function RegisterAdmin({
   isActive,
 }: {
   isActive: boolean;
-}): JSX.Element {
+}): JSX.Element | null {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -53,11 +53,12 @@ export default function RegisterAdmin({
       setLoading(false);
     }
   }
-
+  if (!isActive) return null;
   return (
     <form
       onSubmit={handleSubmit}
       className={`w-full max-w-md ${isActive ? "block" : "hidden"} bg-normal p-4 rounded-xl border-border-color`}
+      noValidate
     >
       <label
         htmlFor="admin-email"
