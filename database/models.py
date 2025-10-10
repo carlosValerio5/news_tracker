@@ -105,10 +105,12 @@ class AdminConfig(Base):
     """Admin configuration table, stores configuration for email recipients."""
 
     __tablename__ = "adminconfig"
-    id = Column(Integer, primary_key=True)
-    target_email = Column(String, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    target_email = Column(String, nullable=False, unique=True)
     summary_send_time = Column(Time)
     last_updated = Column(DateTime)
+
+    Index("uq_adminconfig_target_email", "target_email", unique=True)
 
 
 class Users(Base):
