@@ -237,7 +237,7 @@ class DataBaseHelper:
             raise
 
     @staticmethod
-    def upsert_orm_object(
+    def upsert_orm_from_dict(
         object_type,
         unique_field: str,
         object_to_upsert: dict,

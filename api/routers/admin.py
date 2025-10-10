@@ -168,7 +168,7 @@ def post_admin_config(config: AdminConfig):
     }
 
     try:
-        DataBaseHelper.upsert_orm_object(
+        DataBaseHelper.upsert_orm_from_dict(
             models.AdminConfig,
             "target_email",
             config_to_insert,
