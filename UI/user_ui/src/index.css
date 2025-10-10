@@ -3,4 +3,24 @@
 @theme {
   --font-sans: "Roboto", sans-serif;
   --color-gray-summary: #828282;
+  --color-light: hsl(0, 0%, 100%);
+  --color-normal: hsl(0, 0%, 95%);
+  --color-dark: hsl(0, 0%, 90%);
+  --color-border-color: hsl(0, 0%, 95%);
+  --color-text-principal: hsl(0, 0%, 5%);
+  --color-text-secondary: hsl(0, 0%, 30%);
+  --inset-shadow-light: inset 0 4px 2px hsl(0, 0%, 90%);
+  --background-image-gradient-primary: linear-gradient(
+    0deg,
+    var(--color-normal) 95%,
+    var(--color-light)
+  );
+  --background-image-gradient-hover: linear-gradient(
+    0deg,
+    var(--color-normal),
+    var(--color-light)
+  );
+  --color-highlight: hsl(0, 0%, 100%);
+  --shadow-default:
+    0px 2px 2px hsla(0, 0%, 0%, 0.7), 0px 4px 4px hsla(0, 0%, 0%, 0.15);
 }
