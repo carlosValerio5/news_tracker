@@ -64,7 +64,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_last_updated
 
 -- DROP INDEX IF EXISTS news_schema.uq_adminconfig_target_email;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_adminconfig_target_email
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_adminconfig_target_email
     ON news_schema.adminconfig USING btree
     (target_email COLLATE pg_catalog."default" ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
