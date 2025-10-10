@@ -190,6 +190,7 @@ async def get_active_users():
     """
     try:
         with session_factory() as session:
+            # TODO move to helper function
             one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
             one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
 
