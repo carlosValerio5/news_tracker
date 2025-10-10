@@ -10,7 +10,8 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import select
+from sqlalchemy import select, func
+from datetime import timedelta, timezone
 
 from database import models
 from database.data_base import engine
@@ -179,3 +180,34 @@ def post_admin_config(config: AdminConfig):
         raise HTTPException(status_code=500, detail="Unexpedted error ocurred.")
 
     return config
+
+@admin_router.get("/active-users", status_code=200)
+async def get_active_users():
+    """
+    Gets the count of active users in the last week and day. 
+
+    :return: Dict with counts of active users.
+    """
+    try:
+        with session_factory() as session:
+            one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
+            one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
+
+            stmt_daily = select(func.count().label("count")).filter(
+                models.Users.last_login >= one_day_ago
+            )
+
+            stmt_weekly = select(func.count().label("count")).filter(
+                models.Users.last_login >= one_week_ago
+            )
+
+            daily_active_count = session.execute(stmt_daily).scalar()
+            weekly_active_count = session.execute(stmt_weekly).scalar()
+
+            return {
+                "daily_active_users": daily_active_count,
+                "weekly_active_users": weekly_active_count,
+            }
+    except SQLAlchemyError as e:
+        logger.error(f"Failed to retrieve active user counts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve active users.")
