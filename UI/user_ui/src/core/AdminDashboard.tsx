@@ -16,6 +16,36 @@ const stats: Stat[] = [
   { label: "Reports Generated", value: 312, diff: 8.5 },
 ];
 
+async function getActiveUsers() {
+  try {
+    const response = await apiClient.get("/admin/active-users");
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching active users:", error);
+    return null;
+  }
+}
+
+async function getNewSignups() {
+  try {
+    const response = await apiClient.get("/admin/new-signups");
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching new signups:", error);
+    return null;
+  }
+}
+
+async function getReportsGenerated(){
+  try {
+    const response = await apiClient.get("/admin/reports-generated");
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching reports generated:", error);
+    return null;
+  }
+}
+
 function AdminDashboard() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean | null>(
@@ -91,7 +121,7 @@ function AdminDashboard() {
           </h2>
           {stats.map((s) => (
             <div key={s.label} className="h-full w-full">
-              <StatCard s={s} />
+              <StatCard s={s} weekAndDay={true}/>
             </div>
           ))}
         </section>

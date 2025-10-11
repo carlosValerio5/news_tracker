@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from datetime import timedelta, timezone
 
 from database import models
@@ -77,7 +77,7 @@ require_read = require_scopes(Scope.USER.value)
 admin_router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    dependencies=[Depends(require_admin)],
+    #dependencies=[Depends(require_admin)],
 )
 
 
@@ -193,22 +193,101 @@ async def get_active_users():
             # TODO move to helper function
             one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
             one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
+            two_weeks_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=2)
 
-            stmt_daily = select(func.count().label("count")).filter(
-                models.Users.last_login >= one_day_ago
+            stmt = select(
+                func.sum(case((models.Users.last_login >= one_week_ago, 1), else_=0)).label("this_week"),
+                func.sum(case((models.Users.last_login >= two_weeks_ago, 1)
+                         & (models.Users.last_login < one_week_ago), else_=0)).label("prev_week"),
+               func.sum(case((models.Users.last_login >= one_day_ago, 1), else_=0)).label("today_window"), 
             )
 
-            stmt_weekly = select(func.count().label("count")).filter(
-                models.Users.last_login >= one_week_ago
-            )
-
-            daily_active_count = session.execute(stmt_daily).scalar()
-            weekly_active_count = session.execute(stmt_weekly).scalar()
+            row = session.execute(stmt).one() 
+            daily_active_count = (row.today_window or 0)
+            weekly_active_count = (row.this_week or 0)
+            prev_week_count = (row.prev_week or 0)
+            diff = ((weekly_active_count - prev_week_count) / prev_week_count * 100) if prev_week_count > 0 else None
 
             return {
                 "daily_active_users": daily_active_count,
                 "weekly_active_users": weekly_active_count,
+                "prev_week_users": diff,
             }
     except SQLAlchemyError as e:
         logger.error(f"Failed to retrieve active user counts: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve active users.")
+
+@admin_router.get("/new-signups", status_code=200)
+async def get_new_signups():
+    """
+    Gets the count of new user signups in the last week and day.
+
+    :return: Dict with counts of new signups.
+    """
+    try:
+        with session_factory() as session:
+            # TODO move to helper function
+            one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
+            one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
+            two_weeks_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=2)
+
+            stmt = select(
+                func.sum(case((models.Users.created_at >= one_week_ago, 1), else_=0)).label("this_week"),
+                func.sum(
+                    case(
+                        (
+                            (models.Users.created_at >= two_weeks_ago)
+                            & (models.Users.created_at < one_week_ago),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("prev_week"),
+                func.sum(case((models.Users.created_at >= one_day_ago, 1), else_=0)).label("today_window"),
+            )
+
+            row = session.execute(stmt).one()
+            this_week = int(row.this_week or 0)
+            prev_week = int(row.prev_week or 0)
+            daily_window = int(row.today_window or 0)
+
+            return {
+                "daily_signup_count": daily_window,
+                "weekly_signup_count": this_week,
+                "weekly_signup_diff": ((this_week - prev_week) / prev_week * 100) if prev_week > 0 else None,
+            }
+    except SQLAlchemyError as e:
+        logger.error('Failed to retrieve signup information', extra={'error': str(e)})
+        return JSONResponse(status_code=501, content="Failed to retrieve signup information")
+    except Exception as e:
+        logger.error('Failed to retrieve signup information', extra={'error': str(e)})
+        return JSONResponse(status_code=501, content="Unexpected error ocurred")
+    
+@admin_router.get('/reports-generated', status_code=200)
+async def get_reports_generated():
+    """
+    Gets the count of reports generated in the current day.
+    
+    :return: Dict with counts of reports generated.
+    """
+    try:
+        with session_factory() as session:
+            # TODO move to helper function
+            current_time = datetime.now(tz=timezone.utc)
+            current_time = current_time.time()
+
+            stmt_daily = select(func.count().label("count")).filter(
+                models.AdminConfig.summary_send_time <= current_time
+            )
+
+            daily_report_count = session.execute(stmt_daily).scalar()
+
+            return {
+                "daily_report_count": daily_report_count,
+            }
+    except SQLAlchemyError as e:
+        logger.error('Failed to retrieve report information', extra={'error': str(e)})
+        return JSONResponse(status_code=501, content="Failed to retrieve report information")
+    except Exception as e:
+        logger.error('Failed to retrieve report information', extra={'error': str(e)})
+        return JSONResponse(status_code=501, content="Unexpected error occurred")

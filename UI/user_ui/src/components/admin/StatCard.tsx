@@ -1,6 +1,11 @@
+import { useState } from "react";
+
 type Stat = { label: string; value: string | number; diff?: number };
 
-export default function StatCard({ s }: { s: Stat }) {
+export default function StatCard({ s, weekAndDay }: { s: Stat; weekAndDay: boolean; }) {
+
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+
   const trendColor =
     s.diff === undefined ? "" : s.diff >= 0 ? "text-green-600" : "text-red-600";
   const sign = s.diff && s.diff > 0 ? "+" : "";
@@ -9,14 +14,27 @@ export default function StatCard({ s }: { s: Stat }) {
       <span className="text-xs uppercase tracking-wide text-text-secondary">
         {s.label}
       </span>
-      <span className="text-2xl font-semibold text-text-principal">
+      <div className="flex gap-2">
+        <button className={`${weekAndDay ? 'block' : 'hidden'}`} onClick={() => setActiveIndex(0)}>Last 7 Days</button>
+        <button onClick={() => setActiveIndex(1)}>Last 1 Day</button>
+      </div>
+      <span className={`text-2xl font-semibold text-text-principal  ${activeIndex === 0 ? '' : 'hidden'}`}>
+        {s.value}
+      </span>
+      <span className={`text-2xl font-semibold text-text-principal  ${activeIndex === 1 ? '' : 'hidden'}`}>
         {s.value}
       </span>
       {s.diff !== undefined && (
-        <span className={`text-xs font-medium ${trendColor}`}>
-          {sign}
-          {s.diff}%
-        </span>
+        <div>
+          <span className={`text-xs font-medium ${trendColor} ${activeIndex === 0 ? '' : 'hidden'}`}>
+            {sign}
+            {s.diff}%
+          </span>
+          <span className={`text-xs font-medium ${trendColor} ${activeIndex === 1 ? '' : 'hidden'}`}>
+            {sign}
+            {s.diff}%
+          </span>
+        </div>
       )}
     </div>
   );
