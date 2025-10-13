@@ -8,7 +8,7 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/api";
 import { useAdminMetrics } from "../hooks/useAdminMetrics";
-import type { Stat } from "../hooks/useAdminMetrics";
+import type { Stat } from "../types/stats";
 
 
 function AdminDashboard() {

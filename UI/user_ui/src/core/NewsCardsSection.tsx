@@ -21,8 +21,8 @@ function NewsCardsSection() {
         }
         console.log(response);
         if (!response.ok)
-          throw new Error(`Failed to fetch news: ${response.statusText}`);
-        const articles: Article[] = await response.json();
+          throw new Error(`Failed to fetch news: ${response.status}`);
+        const articles: Article[] = response.data as Article[];
         setArticles(articles.filter(isArticle));
         console.log("Fetched articles:", articles);
       })
