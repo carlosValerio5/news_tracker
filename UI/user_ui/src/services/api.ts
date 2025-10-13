@@ -2,14 +2,20 @@ import { API_BASE } from "../env";
 
 const RUNTIME_API_BASE = API_BASE;
 export const apiClient = {
-  get: (endpoint: string) => {
+  get: (endpoint: string, init?: RequestInit) : Promise<Response> => {
     const headers: HeadersInit = {};
     if (localStorage.getItem("auth_token")) {
       headers["Authorization"] = `Bearer ${localStorage.getItem("auth_token")}`;
     }
+
+    const mergedHeaders = {
+      ...headers,
+      ...init?.headers,
+    }
     return fetch(`${RUNTIME_API_BASE}${endpoint}`, {
       method: "GET",
-      headers: headers,
+      ...init,
+      headers: mergedHeaders,
     });
   },
   post: async <TReq>(endpoint: string, data: TReq) => {

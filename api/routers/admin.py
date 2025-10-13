@@ -4,11 +4,10 @@ import os
 import re
 from datetime import datetime, time
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, HTTPException, Security, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from typing import Optional
-from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select, func, case
 from datetime import timedelta, timezone
@@ -21,6 +20,8 @@ from exceptions.auth_exceptions import UserNotFoundException
 from logger.logging_config import logger
 from api.auth.scopes import Scope
 from api.auth.jwt_service import JWTService
+from api.pydantic_models.admin_config import AdminConfig
+from api.pydantic_models.activities import Activity, ActivitiesResponse
 
 load_dotenv()
 security = HTTPBearer()
@@ -35,13 +36,6 @@ def session_factory():
 
 
 jwt_service = JWTService(secret_key=jwt_secret, algorithm=jwt_algorithm)
-
-
-class AdminConfig(BaseModel):
-    target_email: str
-    summary_send_time: time
-    last_updated: datetime
-
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(security),
@@ -220,9 +214,9 @@ async def get_active_users():
             diff = ((weekly_active_count - prev_week_count) / prev_week_count * 100) if prev_week_count > 0 else None
 
             return {
-                "daily_active_users": daily_active_count,
-                "weekly_active_users": weekly_active_count,
-                "prev_week_users": diff,
+                "value_daily": daily_active_count,
+                "value_weekly": weekly_active_count,
+                "diff": diff,
             }
     except SQLAlchemyError as e:
         logger.error(f"Failed to retrieve active user counts: {e}")
@@ -265,9 +259,9 @@ async def get_new_signups():
             daily_window = int(row.today_window or 0)
 
             return {
-                "daily_signup_count": daily_window,
-                "weekly_signup_count": this_week,
-                "weekly_signup_diff": ((this_week - prev_week) / prev_week * 100) if prev_week > 0 else None,
+                "value_daily": daily_window,
+                "value_weekly": this_week,
+                "diff": ((this_week - prev_week) / prev_week * 100) if prev_week > 0 else None,
             }
     except SQLAlchemyError as e:
         logger.error('Failed to retrieve signup information', extra={'error': str(e)})
@@ -296,7 +290,7 @@ async def get_reports_generated():
             daily_report_count = session.execute(stmt_daily).scalar()
 
             return {
-                "daily_report_count": daily_report_count,
+                "value_daily": daily_report_count,
             }
     except SQLAlchemyError as e:
         logger.error('Failed to retrieve report information', extra={'error': str(e)})
@@ -304,3 +298,43 @@ async def get_reports_generated():
     except Exception as e:
         logger.error('Failed to retrieve report information', extra={'error': str(e)})
         return JSONResponse(status_code=501, content="Unexpected error occurred")
+
+@admin_router.get("/recent-activities", response_model=ActivitiesResponse, status_code=200)
+async def get_recent_activities(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    activity_type: Optional[str] = Query(None),
+    session_factory=session_factory
+    ):
+    """
+    Gets recent activities for the admin dashboard.
+
+    :param limit: Number of recent activities to retrieve (default is 10, max 100).
+    :param offset: Number of activities to skip for pagination (default is 0).
+    :param activity_type: Optional filter by activity type.
+    :return: ActivitiesResponse containing a list of recent activities.
+    """
+    try:
+        with session_factory() as session:
+            stmt = select(models.RecentActivity)
+
+            if activity_type:
+                stmt = stmt.filter(models.RecentActivity.activity_type == activity_type)
+
+            total_stmt = select(func.count()).select_from(stmt.subquery())
+            total = session.execute(total_stmt).scalar()
+
+            stmt = stmt.order_by(models.RecentActivity.occurred_at.desc()).limit(limit).offset(offset)
+            results = session.execute(stmt).scalars().all()
+
+            activities = [Activity.model_validate(activity) for activity in results]
+
+            return ActivitiesResponse(
+                activities=activities,
+                total=total,
+                limit=limit,
+                offset=offset
+            )
+    except SQLAlchemyError as e:
+        logger.exception('Failed to retrieve report information', extra={'error': str(e)})
+        raise HTTPException(status_code=500, detail="Failed to retrieve recent activities.")

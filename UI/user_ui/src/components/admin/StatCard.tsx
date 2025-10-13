@@ -1,10 +1,11 @@
 import { useState } from "react";
+import type { Stat } from "../../hooks/useAdminMetrics";
 
-type Stat = { label: string; value: string | number; diff?: number };
 
 export default function StatCard({ s, weekAndDay }: { s: Stat; weekAndDay: boolean; }) {
 
-  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [activeIndex, setActiveIndex] = useState<number>(1);
+
 
   const trendColor =
     s.diff === undefined ? "" : s.diff >= 0 ? "text-green-600" : "text-red-600";
@@ -15,16 +16,16 @@ export default function StatCard({ s, weekAndDay }: { s: Stat; weekAndDay: boole
         {s.label}
       </span>
       <div className="flex gap-2">
-        <button className={`${weekAndDay ? 'block' : 'hidden'}`} onClick={() => setActiveIndex(0)}>Last 7 Days</button>
-        <button onClick={() => setActiveIndex(1)}>Last 1 Day</button>
+        <button className={`${weekAndDay ? 'block' : 'hidden'} ${activeIndex === 0 ? "bg-black text-white" : ""} text-xs p-2 border rounded-xl border-black/30 hover:text-text-secondary`} onClick={() => setActiveIndex(0)}>7 Days</button>
+        <button className={`${activeIndex === 1 ? "bg-black text-white" : ""} text-xs p-2 border rounded-xl border-black/30 hover:text-text-secondary`} onClick={() => setActiveIndex(1)}>1 Day</button>
       </div>
       <span className={`text-2xl font-semibold text-text-principal  ${activeIndex === 0 ? '' : 'hidden'}`}>
-        {s.value}
+        {s.value_weekly}
       </span>
       <span className={`text-2xl font-semibold text-text-principal  ${activeIndex === 1 ? '' : 'hidden'}`}>
-        {s.value}
+        {s.value_daily}
       </span>
-      {s.diff !== undefined && (
+      {s.diff !== undefined && s.diff !== null && (
         <div>
           <span className={`text-xs font-medium ${trendColor} ${activeIndex === 0 ? '' : 'hidden'}`}>
             {sign}
