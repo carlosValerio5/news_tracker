@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Stat } from "../../hooks/useAdminMetrics";
+import type { Stat } from "../../types/stats";
 
 
 export default function StatCard({ s, weekAndDay }: { s: Stat; weekAndDay: boolean; }) {
@@ -28,10 +28,6 @@ export default function StatCard({ s, weekAndDay }: { s: Stat; weekAndDay: boole
       {s.diff !== undefined && s.diff !== null && (
         <div>
           <span className={`text-xs font-medium ${trendColor} ${activeIndex === 0 ? '' : 'hidden'}`}>
-            {sign}
-            {s.diff}%
-          </span>
-          <span className={`text-xs font-medium ${trendColor} ${activeIndex === 1 ? '' : 'hidden'}`}>
             {sign}
             {s.diff}%
           </span>
