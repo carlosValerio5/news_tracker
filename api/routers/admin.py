@@ -195,11 +195,22 @@ async def get_active_users():
             one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
             two_weeks_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=2)
 
+            # helpers to keep the SQL construction readable
+            col = models.Users.last_login
+
+            def when_tuple(cond):
+                """Return a when-tuple for use with case()."""
+                return (cond, 1)
+
+            this_week_case = case(when_tuple(col >= one_week_ago), else_=0)
+            prev_week_cond = (col >= two_weeks_ago) & (col < one_week_ago)
+            prev_week_case = case(when_tuple(prev_week_cond), else_=0)
+            today_case = case(when_tuple(col >= one_day_ago), else_=0)
+
             stmt = select(
-                func.sum(case((models.Users.last_login >= one_week_ago, 1), else_=0)).label("this_week"),
-                func.sum(case((models.Users.last_login >= two_weeks_ago, 1)
-                         & (models.Users.last_login < one_week_ago), else_=0)).label("prev_week"),
-               func.sum(case((models.Users.last_login >= one_day_ago, 1), else_=0)).label("today_window"), 
+                func.sum(this_week_case).label("this_week"),
+                func.sum(prev_week_case).label("prev_week"),
+                func.sum(today_case).label("today_window"),
             )
 
             row = session.execute(stmt).one() 
@@ -231,19 +242,21 @@ async def get_new_signups():
             one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
             two_weeks_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=2)
 
+            # use helpers and clear grouping for readability (mirror get_active_users)
+            col = models.Users.created_at
+
+            def when_tuple(cond):
+                return (cond, 1)
+
+            this_week_case = case(when_tuple(col >= one_week_ago), else_=0)
+            prev_week_cond = (col >= two_weeks_ago) & (col < one_week_ago)
+            prev_week_case = case(when_tuple(prev_week_cond), else_=0)
+            today_case = case(when_tuple(col >= one_day_ago), else_=0)
+
             stmt = select(
-                func.sum(case((models.Users.created_at >= one_week_ago, 1), else_=0)).label("this_week"),
-                func.sum(
-                    case(
-                        (
-                            (models.Users.created_at >= two_weeks_ago)
-                            & (models.Users.created_at < one_week_ago),
-                            1,
-                        ),
-                        else_=0,
-                    )
-                ).label("prev_week"),
-                func.sum(case((models.Users.created_at >= one_day_ago, 1), else_=0)).label("today_window"),
+                func.sum(this_week_case).label("this_week"),
+                func.sum(prev_week_case).label("prev_week"),
+                func.sum(today_case).label("today_window"),
             )
 
             row = session.execute(stmt).one()
