@@ -1,13 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../services/api";
-
-export type Stat = { value_daily: number | string; value_weekly?: number | string; diff?: number, label?: string };
-
-type Metrics = {
-  activeUsers: Stat | null;
-  newSignups: Stat | null;
-  reportsGenerated: Stat | null;
-};
+import type { Metrics } from "../types/stats";
+import type { Stat } from "../types/stats";
 
 
 export function useAdminMetrics() {
@@ -27,17 +21,8 @@ export function useAdminMetrics() {
 
     const fetchJson = async (url: string) => {
         const res = await apiClient.get(url, { signal: ctrl.signal });
-        if (!res || !res.ok) {
-            let msg = `Request failed: ${res?.status ?? "no response"}`;
-            try {
-                const body = await res?.json();
-                if (body?.detail) msg = String(body.detail);
-                } catch {
-                    setError("Failed to parse error response");
-                }
-            throw new Error(msg);
-        }
-        return res.json();
+        if (!res.ok) setError("Failed to fetch data");
+        return res.data as Stat | null;
     };
 
     (async () => {
