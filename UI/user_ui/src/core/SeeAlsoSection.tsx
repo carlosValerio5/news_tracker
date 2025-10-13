@@ -17,9 +17,9 @@ const sampleCards = [
 
 function SeeAlsoSection() {
   return (
-    <div>
+    <div className="md:w-full lg:p-5 mb-10 gap-4">
       <h1 className="ml-3 text-2xl font-bold">See also</h1>
-      <div className="flex flex-row overflow-x-auto items-center gap-4 md:h-fit md:grid md:grid-cols-2 md:grid-rows-1 md:gap-2 md:overflow-x-visible p-5">
+      <div className="h-full flex flex-row overflow-x-auto items-center gap-4 md:h-fit md:grid md:grid-cols-2 md:grid-rows-1 md:gap-2 md:overflow-x-visible p-5">
         {sampleCards.map((card, index) => (
           <TransparentCard
             key={index}

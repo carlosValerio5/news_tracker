@@ -10,13 +10,13 @@ function TransparentCard({
   description,
 }: TransparentCardProps) {
   return (
-    <div className="max-h-[600px] min-w-[200px] justify-baseline items-center md:p-10">
+    <div className="w-full min-w-[200px] justify-baseline items-center md:p-10">
       {imageUrl && (
-        <div className="h-full w-full overflow-clip flex justify-center items-center mb-3">
+        <div className="w-full h-48 md:h-56 lg:h-76 overflow-hidden flex justify-center items-center rounded-md mb-3">
           <img
             src={imageUrl}
             alt="Transparent Card Background"
-            className="w-full h-auto"
+            className="w-full h-full object-cover block"
           />
         </div>
       )}
