@@ -125,6 +125,7 @@ class Users(Base):
 
     Index("idx_users_email", "email")
 
+
 class RecentActivity(Base):
     """Recent activity view for admin dashboard."""
 
@@ -135,4 +136,3 @@ class RecentActivity(Base):
     occurred_at = Column(DateTime, nullable=False)
     entity_id = Column(Integer)
     entity_type = Column(String)
-

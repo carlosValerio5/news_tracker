@@ -36,7 +36,7 @@ const makeResponseLike = <T>(payload: T, status = 200) => ({
 
 export const apiClient = {
   // get returns a typed ApiResponse<T> in the real client
-  get: jest.fn(async (endpoint: string) : Promise<ApiResponse<unknown>> => {
+  get: jest.fn(async (endpoint: string): Promise<ApiResponse<unknown>> => {
     if (endpoint === "/news-report") {
       return { ok: true, status: 200, data: sampleArticles };
     }

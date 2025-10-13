@@ -10,7 +10,6 @@ import { apiClient } from "../services/api";
 import { useAdminMetrics } from "../hooks/useAdminMetrics";
 import type { Stat } from "../types/stats";
 
-
 function AdminDashboard() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean | null>(
@@ -21,25 +20,37 @@ function AdminDashboard() {
   const { data, loading: metricsLoading, error } = useAdminMetrics();
 
   const activeUsers: Stat = {
-    value_daily: metricsLoading ? "Loading..." : data.activeUsers?.value_daily ?? "—",
-    value_weekly: metricsLoading ? "Loading..." : data.activeUsers?.value_weekly ?? "—",
+    value_daily: metricsLoading
+      ? "Loading..."
+      : (data.activeUsers?.value_daily ?? "—"),
+    value_weekly: metricsLoading
+      ? "Loading..."
+      : (data.activeUsers?.value_weekly ?? "—"),
     diff: metricsLoading ? undefined : data.activeUsers?.diff,
-    label: "Active Users"
-  }
+    label: "Active Users",
+  };
 
   const newSignups: Stat = {
-    value_daily: metricsLoading ? "Loading..." : data.newSignups?.value_daily ?? "—",
-    value_weekly: metricsLoading ? "Loading..." : data.newSignups?.value_weekly ?? "—",
+    value_daily: metricsLoading
+      ? "Loading..."
+      : (data.newSignups?.value_daily ?? "—"),
+    value_weekly: metricsLoading
+      ? "Loading..."
+      : (data.newSignups?.value_weekly ?? "—"),
     diff: metricsLoading ? undefined : data.newSignups?.diff,
-    label: "New Signups"
-  }
+    label: "New Signups",
+  };
 
   const reportsGenerated: Stat = {
-    value_daily: metricsLoading ? "Loading..." : data.reportsGenerated?.value_daily ?? "—",
-    value_weekly: metricsLoading ? "Loading..." : data.reportsGenerated?.value_weekly ?? "—",
+    value_daily: metricsLoading
+      ? "Loading..."
+      : (data.reportsGenerated?.value_daily ?? "—"),
+    value_weekly: metricsLoading
+      ? "Loading..."
+      : (data.reportsGenerated?.value_weekly ?? "—"),
     diff: metricsLoading ? undefined : data.reportsGenerated?.diff,
-    label: "Reports Generated"
-  }
+    label: "Reports Generated",
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -108,14 +119,12 @@ function AdminDashboard() {
             Key Metrics
           </h2>
           {error ? (
-            <div className="text-red-600">
-              Error loading metrics: {error}
-            </div>
+            <div className="text-red-600">Error loading metrics: {error}</div>
           ) : (
             <>
-              <StatCard s={activeUsers} weekAndDay={true}/>
-              <StatCard s={newSignups} weekAndDay={true}/>
-              <StatCard s={reportsGenerated} weekAndDay={false}/>
+              <StatCard s={activeUsers} weekAndDay={true} />
+              <StatCard s={newSignups} weekAndDay={true} />
+              <StatCard s={reportsGenerated} weekAndDay={false} />
             </>
           )}
         </section>

@@ -5,7 +5,7 @@ export type Activity = {
   occurred_at?: Date;
   entity_id?: number;
   entity_type?: string;
-}
+};
 
 export interface RecentActivitiesResponse {
   total: number;

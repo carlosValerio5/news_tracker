@@ -37,6 +37,7 @@ def session_factory():
 
 jwt_service = JWTService(secret_key=jwt_secret, algorithm=jwt_algorithm)
 
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(security),
 ) -> dict:
@@ -71,7 +72,7 @@ require_read = require_scopes(Scope.USER.value)
 admin_router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    #dependencies=[Depends(require_admin)],
+    # dependencies=[Depends(require_admin)],
 )
 
 
@@ -175,10 +176,11 @@ def post_admin_config(config: AdminConfig):
 
     return config
 
+
 @admin_router.get("/active-users", status_code=200)
 async def get_active_users():
     """
-    Gets the count of active users in the last week and day. 
+    Gets the count of active users in the last week and day.
 
     :return: Dict with counts of active users.
     """
@@ -207,11 +209,15 @@ async def get_active_users():
                 func.sum(today_case).label("today_window"),
             )
 
-            row = session.execute(stmt).one() 
-            daily_active_count = (row.today_window or 0)
-            weekly_active_count = (row.this_week or 0)
-            prev_week_count = (row.prev_week or 0)
-            diff = ((weekly_active_count - prev_week_count) / prev_week_count * 100) if prev_week_count > 0 else None
+            row = session.execute(stmt).one()
+            daily_active_count = row.today_window or 0
+            weekly_active_count = row.this_week or 0
+            prev_week_count = row.prev_week or 0
+            diff = (
+                ((weekly_active_count - prev_week_count) / prev_week_count * 100)
+                if prev_week_count > 0
+                else None
+            )
 
             return {
                 "value_daily": daily_active_count,
@@ -221,6 +227,7 @@ async def get_active_users():
     except SQLAlchemyError as e:
         logger.error(f"Failed to retrieve active user counts: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve active users.")
+
 
 @admin_router.get("/new-signups", status_code=200)
 async def get_new_signups():
@@ -261,20 +268,25 @@ async def get_new_signups():
             return {
                 "value_daily": daily_window,
                 "value_weekly": this_week,
-                "diff": ((this_week - prev_week) / prev_week * 100) if prev_week > 0 else None,
+                "diff": ((this_week - prev_week) / prev_week * 100)
+                if prev_week > 0
+                else None,
             }
     except SQLAlchemyError as e:
-        logger.error('Failed to retrieve signup information', extra={'error': str(e)})
-        return JSONResponse(status_code=501, content="Failed to retrieve signup information")
+        logger.error("Failed to retrieve signup information", extra={"error": str(e)})
+        return JSONResponse(
+            status_code=501, content="Failed to retrieve signup information"
+        )
     except Exception as e:
-        logger.error('Failed to retrieve signup information', extra={'error': str(e)})
+        logger.error("Failed to retrieve signup information", extra={"error": str(e)})
         return JSONResponse(status_code=501, content="Unexpected error ocurred")
-    
-@admin_router.get('/reports-generated', status_code=200)
+
+
+@admin_router.get("/reports-generated", status_code=200)
 async def get_reports_generated():
     """
     Gets the count of reports generated in the current day.
-    
+
     :return: Dict with counts of reports generated.
     """
     try:
@@ -293,19 +305,24 @@ async def get_reports_generated():
                 "value_daily": daily_report_count,
             }
     except SQLAlchemyError as e:
-        logger.error('Failed to retrieve report information', extra={'error': str(e)})
-        return JSONResponse(status_code=501, content="Failed to retrieve report information")
+        logger.error("Failed to retrieve report information", extra={"error": str(e)})
+        return JSONResponse(
+            status_code=501, content="Failed to retrieve report information"
+        )
     except Exception as e:
-        logger.error('Failed to retrieve report information', extra={'error': str(e)})
+        logger.error("Failed to retrieve report information", extra={"error": str(e)})
         return JSONResponse(status_code=501, content="Unexpected error occurred")
 
-@admin_router.get("/recent-activities", response_model=ActivitiesResponse, status_code=200)
+
+@admin_router.get(
+    "/recent-activities", response_model=ActivitiesResponse, status_code=200
+)
 async def get_recent_activities(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     activity_type: Optional[str] = Query(None),
-    session_factory=session_factory
-    ):
+    session_factory=session_factory,
+):
     """
     Gets recent activities for the admin dashboard.
 
@@ -324,17 +341,22 @@ async def get_recent_activities(
             total_stmt = select(func.count()).select_from(stmt.subquery())
             total = session.execute(total_stmt).scalar()
 
-            stmt = stmt.order_by(models.RecentActivity.occurred_at.desc()).limit(limit).offset(offset)
+            stmt = (
+                stmt.order_by(models.RecentActivity.occurred_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
             results = session.execute(stmt).scalars().all()
 
             activities = [Activity.model_validate(activity) for activity in results]
 
             return ActivitiesResponse(
-                activities=activities,
-                total=total,
-                limit=limit,
-                offset=offset
+                activities=activities, total=total, limit=limit, offset=offset
             )
     except SQLAlchemyError as e:
-        logger.exception('Failed to retrieve report information', extra={'error': str(e)})
-        raise HTTPException(status_code=500, detail="Failed to retrieve recent activities.")
+        logger.exception(
+            "Failed to retrieve report information", extra={"error": str(e)}
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve recent activities."
+        )

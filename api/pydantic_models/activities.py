@@ -10,9 +10,10 @@ class Activity(BaseModel):
     occurred_at: Optional[datetime]
     entity_id: Optional[int]
     entity_type: str
-    
+
     class Config:
         from_attributes = True
+
 
 class ActivitiesResponse(BaseModel):
     activities: List[Activity]

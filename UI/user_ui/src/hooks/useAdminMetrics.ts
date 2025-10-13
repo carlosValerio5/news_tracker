@@ -3,7 +3,6 @@ import { apiClient } from "../services/api";
 import type { Metrics } from "../types/stats";
 import type { Stat } from "../types/stats";
 
-
 export function useAdminMetrics() {
   const [data, setData] = useState<Metrics>({
     activeUsers: null,
@@ -20,9 +19,9 @@ export function useAdminMetrics() {
     setError(null);
 
     const fetchJson = async (url: string) => {
-        const res = await apiClient.get(url, { signal: ctrl.signal });
-        if (!res.ok) setError("Failed to fetch data");
-        return res.data as Stat | null;
+      const res = await apiClient.get(url, { signal: ctrl.signal });
+      if (!res.ok) setError("Failed to fetch data");
+      return res.data as Stat | null;
     };
 
     (async () => {
@@ -48,4 +47,3 @@ export function useAdminMetrics() {
 
   return { data, loading, error };
 }
-
