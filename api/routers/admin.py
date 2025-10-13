@@ -2,7 +2,7 @@
 
 import os
 import re
-from datetime import datetime, time
+from datetime import datetime
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Security, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
