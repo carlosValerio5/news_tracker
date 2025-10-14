@@ -8,6 +8,7 @@ type ApiResponse<T> = {
 };
 
 export const API_BASE = "";
+const activitiesEndpoint = "/admin/recent-activities";
 
 const sampleArticles: Article[] = [
   {
@@ -41,7 +42,7 @@ export const apiClient = {
       return { ok: true, status: 200, data: sampleArticles };
     }
 
-    if (endpoint === "/admin/recent-activities") {
+    if (endpoint === activitiesEndpoint) {
       return {
         ok: true,
         status: 200,
