@@ -14,9 +14,11 @@ afterAll(() => {
 });
 
 // smoke test to ensure app renders routes
-test("renders landing page content via App", () => {
+test("renders landing page content via App", async () => {
   render(<RouterProvider router={router} />);
   // Landing should contain at least one 'Latest News' heading
-  const headings = screen.getAllByRole("heading", { name: /Latest News/i });
+  const headings = await screen.findAllByRole("heading", {
+    name: /Latest News/i,
+  });
   expect(headings.length).toBeGreaterThanOrEqual(1);
 });
