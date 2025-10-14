@@ -197,7 +197,7 @@ def test_post_admin_config_sqlalchemy_error(mocker):
     }
 
     mocker.patch.object(
-        DataBaseHelper, "write_orm_objects", side_effect=SQLAlchemyError("DB error")
+        DataBaseHelper, "upsert_orm_from_dict", side_effect=SQLAlchemyError("DB error")
     )
 
     payload = {
@@ -220,7 +220,9 @@ def test_post_admin_config_unexpected_error(mocker):
     }
 
     mocker.patch.object(
-        DataBaseHelper, "write_orm_objects", side_effect=Exception("Unexpected error")
+        DataBaseHelper,
+        "upsert_orm_from_dict",
+        side_effect=Exception("Unexpected error"),
     )
 
     payload = {
