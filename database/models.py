@@ -126,3 +126,15 @@ class Users(Base):
     google_id = Column(String, unique=True)
 
     Index("idx_users_email", "email")
+
+
+class RecentActivity(Base):
+    """Recent activity view for admin dashboard."""
+
+    __tablename__ = "recent_activity"
+    id = Column(Integer, primary_key=True)
+    activity_type = Column(String)
+    description = Column(String)
+    occurred_at = Column(DateTime, nullable=False)
+    entity_id = Column(Integer)
+    entity_type = Column(String)

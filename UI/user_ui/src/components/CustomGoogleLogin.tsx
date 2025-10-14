@@ -19,6 +19,7 @@ function CustomGoogleLogin() {
         });
 
         const payload: AuthPayload = await response.json();
+        console.log(payload.token);
         localStorage.setItem("auth_token", payload.token);
         navigate("/");
       } catch {

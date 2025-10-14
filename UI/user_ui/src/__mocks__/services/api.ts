@@ -1,6 +1,14 @@
 import type { Article } from "../../types/news";
 
+// Local ApiResponse shape to mirror the real client used in the app
+type ApiResponse<T> = {
+  status: number;
+  data: T | null;
+  ok: boolean;
+};
+
 export const API_BASE = "";
+const activitiesEndpoint = "/admin/recent-activities";
 
 const sampleArticles: Article[] = [
   {
@@ -21,20 +29,43 @@ const sampleArticles: Article[] = [
   },
 ];
 
-const makeResponse = (payload: Article[]) => ({
-  ok: true,
-  status: 200,
+const makeResponseLike = <T>(payload: T, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
   json: async () => payload,
 });
 
 export const apiClient = {
-  get: jest.fn((endpoint: string) => {
+  // get returns a typed ApiResponse<T> in the real client
+  get: jest.fn(async (endpoint: string): Promise<ApiResponse<unknown>> => {
     if (endpoint === "/news-report") {
-      return Promise.resolve(makeResponse(sampleArticles));
+      return { ok: true, status: 200, data: sampleArticles };
     }
-    return Promise.resolve(makeResponse([]));
+
+    if (endpoint === activitiesEndpoint) {
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          activities: [
+            { description: "promoted to admin" },
+            { description: "Daily trends job completed successfully" },
+          ],
+        },
+      };
+    }
+
+    return { ok: true, status: 200, data: [] };
   }),
-  post: jest.fn(() => Promise.resolve(makeResponse([]))),
-  put: jest.fn(() => Promise.resolve(makeResponse([]))),
-  delete: jest.fn(() => Promise.resolve(makeResponse([]))),
+
+  // post/put/delete return fetch Response-like objects in many tests
+  post: jest.fn(async () =>
+    Promise.resolve(makeResponseLike({ ok: true, status: 200, data: null })),
+  ),
+  put: jest.fn(async () =>
+    Promise.resolve(makeResponseLike({ ok: true, status: 200, data: null })),
+  ),
+  delete: jest.fn(async () =>
+    Promise.resolve(makeResponseLike({ ok: true, status: 200, data: null })),
+  ),
 };

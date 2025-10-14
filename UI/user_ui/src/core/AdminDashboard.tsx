@@ -7,14 +7,8 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../services/api";
-
-type Stat = { label: string; value: string | number; diff?: number };
-
-const stats: Stat[] = [
-  { label: "Active Users", value: 1284, diff: 4.2 },
-  { label: "New Signups", value: 57, diff: 1.1 },
-  { label: "Reports Generated", value: 312, diff: 8.5 },
-];
+import { useAdminMetrics } from "../hooks/useAdminMetrics";
+import type { Stat } from "../types/stats";
 
 function AdminDashboard() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -22,6 +16,41 @@ function AdminDashboard() {
     null,
   );
   const navigate = useNavigate();
+
+  const { data, loading: metricsLoading, error } = useAdminMetrics();
+
+  const activeUsers: Stat = {
+    value_daily: metricsLoading
+      ? "Loading..."
+      : (data.activeUsers?.value_daily ?? "—"),
+    value_weekly: metricsLoading
+      ? "Loading..."
+      : (data.activeUsers?.value_weekly ?? "—"),
+    diff: metricsLoading ? undefined : data.activeUsers?.diff,
+    label: "Active Users",
+  };
+
+  const newSignups: Stat = {
+    value_daily: metricsLoading
+      ? "Loading..."
+      : (data.newSignups?.value_daily ?? "—"),
+    value_weekly: metricsLoading
+      ? "Loading..."
+      : (data.newSignups?.value_weekly ?? "—"),
+    diff: metricsLoading ? undefined : data.newSignups?.diff,
+    label: "New Signups",
+  };
+
+  const reportsGenerated: Stat = {
+    value_daily: metricsLoading
+      ? "Loading..."
+      : (data.reportsGenerated?.value_daily ?? "—"),
+    value_weekly: metricsLoading
+      ? "Loading..."
+      : (data.reportsGenerated?.value_weekly ?? "—"),
+    diff: metricsLoading ? undefined : data.reportsGenerated?.diff,
+    label: "Reports Generated",
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -89,11 +118,15 @@ function AdminDashboard() {
           <h2 id="stats-heading" className="sr-only">
             Key Metrics
           </h2>
-          {stats.map((s) => (
-            <div key={s.label} className="h-full w-full">
-              <StatCard s={s} />
-            </div>
-          ))}
+          {error ? (
+            <div className="text-red-600">Error loading metrics: {error}</div>
+          ) : (
+            <>
+              <StatCard s={activeUsers} weekAndDay={true} />
+              <StatCard s={newSignups} weekAndDay={true} />
+              <StatCard s={reportsGenerated} weekAndDay={false} />
+            </>
+          )}
         </section>
 
         {/* Two Column Layout */}

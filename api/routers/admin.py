@@ -2,15 +2,15 @@
 
 import os
 import re
-from datetime import datetime, time
+from datetime import datetime
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, HTTPException, Security, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from typing import Optional
-from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import select
+from sqlalchemy import select, func, case
+from datetime import timedelta, timezone
 
 from database import models
 from database.data_base import engine
@@ -20,6 +20,8 @@ from exceptions.auth_exceptions import UserNotFoundException
 from logger.logging_config import logger
 from api.auth.scopes import Scope
 from api.auth.jwt_service import JWTService
+from api.pydantic_models.admin_config import AdminConfig
+from api.pydantic_models.activities import Activity, ActivitiesResponse
 
 load_dotenv()
 security = HTTPBearer()
@@ -34,12 +36,6 @@ def session_factory():
 
 
 jwt_service = JWTService(secret_key=jwt_secret, algorithm=jwt_algorithm)
-
-
-class AdminConfig(BaseModel):
-    target_email: str
-    summary_send_time: time
-    last_updated: datetime
 
 
 def get_current_user(
@@ -76,7 +72,7 @@ require_read = require_scopes(Scope.USER.value)
 admin_router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    dependencies=[Depends(require_admin)],
+    # dependencies=[Depends(require_admin)],
 )
 
 
@@ -185,3 +181,188 @@ def post_admin_config(config: AdminConfig):
         raise HTTPException(status_code=500, detail="Unexpedted error ocurred.")
 
     return config
+
+
+@admin_router.get("/active-users", status_code=200)
+async def get_active_users():
+    """
+    Gets the count of active users in the last week and day.
+
+    :return: Dict with counts of active users.
+    """
+    try:
+        with session_factory() as session:
+            # TODO move to helper function
+            one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
+            one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
+            two_weeks_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=2)
+
+            # helpers to keep the SQL construction readable
+            col = models.Users.last_login
+
+            def when_tuple(cond):
+                """Return a when-tuple for use with case()."""
+                return (cond, 1)
+
+            this_week_case = case(when_tuple(col >= one_week_ago), else_=0)
+            prev_week_cond = (col >= two_weeks_ago) & (col < one_week_ago)
+            prev_week_case = case(when_tuple(prev_week_cond), else_=0)
+            today_case = case(when_tuple(col >= one_day_ago), else_=0)
+
+            stmt = select(
+                func.sum(this_week_case).label("this_week"),
+                func.sum(prev_week_case).label("prev_week"),
+                func.sum(today_case).label("today_window"),
+            )
+
+            row = session.execute(stmt).one()
+            daily_active_count = row.today_window or 0
+            weekly_active_count = row.this_week or 0
+            prev_week_count = row.prev_week or 0
+            diff = (
+                ((weekly_active_count - prev_week_count) / prev_week_count * 100)
+                if prev_week_count > 0
+                else None
+            )
+
+            return {
+                "value_daily": daily_active_count,
+                "value_weekly": weekly_active_count,
+                "diff": diff,
+            }
+    except SQLAlchemyError as e:
+        logger.error(f"Failed to retrieve active user counts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve active users.")
+
+
+@admin_router.get("/new-signups", status_code=200)
+async def get_new_signups():
+    """
+    Gets the count of new user signups in the last week and day.
+
+    :return: Dict with counts of new signups.
+    """
+    try:
+        with session_factory() as session:
+            # TODO move to helper function
+            one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
+            one_week_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=1)
+            two_weeks_ago = datetime.now(tz=timezone.utc) - timedelta(weeks=2)
+
+            # use helpers and clear grouping for readability (mirror get_active_users)
+            col = models.Users.created_at
+
+            def when_tuple(cond):
+                return (cond, 1)
+
+            this_week_case = case(when_tuple(col >= one_week_ago), else_=0)
+            prev_week_cond = (col >= two_weeks_ago) & (col < one_week_ago)
+            prev_week_case = case(when_tuple(prev_week_cond), else_=0)
+            today_case = case(when_tuple(col >= one_day_ago), else_=0)
+
+            stmt = select(
+                func.sum(this_week_case).label("this_week"),
+                func.sum(prev_week_case).label("prev_week"),
+                func.sum(today_case).label("today_window"),
+            )
+
+            row = session.execute(stmt).one()
+            this_week = int(row.this_week or 0)
+            prev_week = int(row.prev_week or 0)
+            daily_window = int(row.today_window or 0)
+
+            return {
+                "value_daily": daily_window,
+                "value_weekly": this_week,
+                "diff": ((this_week - prev_week) / prev_week * 100)
+                if prev_week > 0
+                else None,
+            }
+    except SQLAlchemyError as e:
+        logger.error("Failed to retrieve signup information", extra={"error": str(e)})
+        return JSONResponse(
+            status_code=501, content="Failed to retrieve signup information"
+        )
+    except Exception as e:
+        logger.error("Failed to retrieve signup information", extra={"error": str(e)})
+        return JSONResponse(status_code=501, content="Unexpected error ocurred")
+
+
+@admin_router.get("/reports-generated", status_code=200)
+async def get_reports_generated():
+    """
+    Gets the count of reports generated in the current day.
+
+    :return: Dict with counts of reports generated.
+    """
+    try:
+        with session_factory() as session:
+            # TODO move to helper function
+            current_time = datetime.now(tz=timezone.utc)
+            current_time = current_time.time()
+
+            stmt_daily = select(func.count().label("count")).filter(
+                models.AdminConfig.summary_send_time <= current_time
+            )
+
+            daily_report_count = session.execute(stmt_daily).scalar()
+
+            return {
+                "value_daily": daily_report_count,
+            }
+    except SQLAlchemyError as e:
+        logger.error("Failed to retrieve report information", extra={"error": str(e)})
+        return JSONResponse(
+            status_code=501, content="Failed to retrieve report information"
+        )
+    except Exception as e:
+        logger.error("Failed to retrieve report information", extra={"error": str(e)})
+        return JSONResponse(status_code=501, content="Unexpected error occurred")
+
+
+@admin_router.get(
+    "/recent-activities", response_model=ActivitiesResponse, status_code=200
+)
+async def get_recent_activities(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    activity_type: Optional[str] = Query(None),
+    session_factory=session_factory,
+):
+    """
+    Gets recent activities for the admin dashboard.
+
+    :param limit: Number of recent activities to retrieve (default is 10, max 100).
+    :param offset: Number of activities to skip for pagination (default is 0).
+    :param activity_type: Optional filter by activity type.
+    :return: ActivitiesResponse containing a list of recent activities.
+    """
+    try:
+        with session_factory() as session:
+            stmt = select(models.RecentActivity)
+
+            if activity_type:
+                stmt = stmt.filter(models.RecentActivity.activity_type == activity_type)
+
+            total_stmt = select(func.count()).select_from(stmt.subquery())
+            total = session.execute(total_stmt).scalar()
+
+            stmt = (
+                stmt.order_by(models.RecentActivity.occurred_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            results = session.execute(stmt).scalars().all()
+
+            activities = [Activity.model_validate(activity) for activity in results]
+
+            return ActivitiesResponse(
+                activities=activities, total=total, limit=limit, offset=offset
+            )
+    except SQLAlchemyError as e:
+        logger.exception(
+            "Failed to retrieve report information", extra={"error": str(e)}
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve recent activities."
+        )

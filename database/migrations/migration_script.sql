@@ -340,6 +340,51 @@ ALTER SEQUENCE news_schema.trendsresults_id_seq
     OWNER TO postgres;
 
 
+-- View: news_schema.recent_activity
+
+-- DROP VIEW news_schema.recent_activity;
+
+CREATE OR REPLACE VIEW news_schema.recent_activity
+ AS
+ SELECT row_number() OVER (ORDER BY activity_type, occurred_at) AS id,
+    activity_type,
+    description,
+    occurred_at,
+    entity_id,
+    entity_type
+   FROM ( SELECT row_number() OVER (ORDER BY users.created_at DESC) AS row_number,
+            'user-registered'::text AS activity_type,
+            concat('User ', users.email, ' registered') AS description,
+            users.created_at AS occurred_at,
+            users.id AS entity_id,
+            'users'::text AS entity_type
+           FROM news_schema.users
+        UNION ALL
+         SELECT row_number() OVER (ORDER BY (count(*))) AS row_number,
+            'article_published'::text AS activity_type,
+            concat(count(*), ' articles were created.') AS description,
+            CURRENT_DATE AS occurred_at,
+            NULL::integer AS entity_id,
+            'news'::text AS entity_type
+           FROM news_schema.news
+          WHERE news.created_at >= CURRENT_DATE
+         HAVING count(*) > 0
+        UNION ALL
+         SELECT row_number() OVER (ORDER BY (count(*))) AS row_number,
+            'keywords_extracted'::text AS activity_type,
+            concat(count(*), ' sets of keywords were extracted') AS concat,
+            CURRENT_DATE AS occurred_at,
+            NULL::integer AS entity_id,
+            'articlekeywords'::text AS entity_type
+           FROM news_schema.articlekeywords
+          WHERE articlekeywords.extracted_at >= CURRENT_DATE
+         HAVING count(*) > 0) activities
+  ORDER BY occurred_at DESC
+ LIMIT 100;
+
+ALTER TABLE news_schema.recent_activity
+    OWNER TO postgres;
+
 -- SEQUENCE: news_schema.users_id_seq
 
 -- DROP SEQUENCE IF EXISTS news_schema.users_id_seq;
