@@ -21,9 +21,10 @@ class S3Handler:
         except Exception as e:
             raise S3BucketServiceError(f"Error initializing S3 client: {e}")
         self.bucket_name = bucket_name
+        self.region_name = region_name
 
     def upload_thumbnail(self, image_url: str, article_id: int) -> str:
-        """
+        """    
         Upload a thumbnail image to the S3 bucket.
 
         :param image_url: URL of the image to upload.
@@ -41,12 +42,13 @@ class S3Handler:
                 "uploaded_at": datetime.now().isoformat()
             }
 
-            self.s3.client.put_object(
+            self.s3.put_object(
                 Bucket=self.bucket_name,
                 Key=s3_key,
                 Body=response.content,
                 ContentType=response.headers.get('Content-Type', 'image/jpeg'),
                 CacheControl='max-age=31536000',
+                Metadata=metadata
             )
 
             # Location in bucket
