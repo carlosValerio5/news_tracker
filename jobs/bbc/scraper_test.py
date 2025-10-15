@@ -3,6 +3,8 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, UTC
 
 from jobs.bbc.scraper import Scraper, parse_date, extract_section_from_url
+from jobs.bbc.scraper import _extract_thumbnail_from_item
+from bs4 import BeautifulSoup
 
 # ------------ UNIT TESTS FOR UTILITY FUNCTIONS ------------
 
@@ -162,5 +164,87 @@ def test_scraper_process_feeds(
     assert all("headline" in n.keys() for n in news)
 
 
-# Additional tests (such as error handling, edge cases, etc.) are possible.
-# For real scenarios, also mock soup parsing if you want to isolate even further.
+def test_extract_thumbnail_from_item_media_thumbnail():
+    item_xml = '''
+    <item>
+      <title>With Thumb</title>
+      <link>https://bbc.co.uk/news/article-1</link>
+      <media:thumbnail width="240" height="134" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/sample.jpg"/>
+    </item>
+    '''
+    item = BeautifulSoup(item_xml, "xml").find("item")
+    thumb = _extract_thumbnail_from_item(item)
+    assert thumb == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/sample.jpg"
+
+
+def test_extract_thumbnail_from_item_regex_fallback():
+    # No thumbnail tag, but raw xml contains url="..." somewhere
+    item_xml = '<item><title>X</title><description>img url="https://example.com/img.jpg" /></description></item>'
+    item = BeautifulSoup(item_xml, "xml").find("item")
+    thumb = _extract_thumbnail_from_item(item)
+    assert thumb == "https://example.com/img.jpg"
+
+
+def test_extract_thumbnail_from_item_malformed_returns_none():
+    # Thumbnail tag present but no url attribute -> should return None
+    item_xml = '<item><media:thumbnail width="240" height="134" /></item>'
+    item = BeautifulSoup(item_xml, "xml").find("item")
+    thumb = _extract_thumbnail_from_item(item)
+    assert thumb is None
+
+
+@patch("jobs.bbc.scraper.requests.get")
+@patch("jobs.bbc.scraper.News")
+def test_scraper_process_feeds_includes_thumbnail(
+    mock_news, mock_requests, fake_navbar_html, news_class_mock, fake_section_html
+):
+    # Similar to test_scraper_process_feeds but include a thumbnail in the RSS
+    pub_date = datetime.now(UTC).strftime("%a, %d %b %Y %H:%M:%S %Z")
+    fake_rss_with_thumb = f"""
+    <rss>
+      <channel>
+        <item>
+          <title>Headline Thumb</title>
+          <link>https://bbc.co.uk/news/article-1</link>
+          <pubDate>{pub_date}</pubDate>
+          <description>Summary 1</description>
+          <media:thumbnail width="240" height="134" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/thumb.jpg"/>
+        </item>
+      </channel>
+    </rss>
+    """
+
+    # Mock navbar and section pages
+    mock_response_nav = MagicMock()
+    mock_response_nav.text = fake_navbar_html
+    mock_response_nav.raise_for_status = lambda: None
+
+    mock_response_section = MagicMock()
+    mock_response_section.text = fake_section_html
+    mock_response_section.raise_for_status = lambda: None
+
+    mock_response_rss = MagicMock()
+    mock_response_rss.text = fake_rss_with_thumb
+    mock_response_rss.raise_for_status = lambda: None
+
+    # requests.get order: navbar, section x3, rss x3 (as code expects)
+    mock_requests.side_effect = [
+        mock_response_nav,
+        mock_response_section,
+        mock_response_section,
+        mock_response_section,
+        mock_response_rss,
+        mock_response_rss,
+        mock_response_rss,
+    ]
+
+    mock_news.side_effect = news_class_mock
+
+    scraper = Scraper()
+    with patch("jobs.bbc.scraper.time.sleep"):
+        scraper.process_feeds()
+
+    news = scraper.get_news()
+    assert len(news) >= 1
+    assert "thumbnail" in news[0]
+    assert news[0]["thumbnail"] == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/thumb.jpg"
