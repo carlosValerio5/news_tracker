@@ -235,11 +235,17 @@ def _extract_thumbnail_from_item(item) -> str | None:
                         if isinstance(v, str) and v.strip():
                             return v.strip()
 
-        # Fallback: search for a thumbnail tag with url="..." using a focused regex (limits to thumbnail tags)
+        # Fallback: first attempt to find a thumbnail tag with a url attribute
         raw = str(item)
         m = re.search(r"<[^>]*thumbnail[^>]*\surl\s*=\s*\"([^\"]+)\"", raw, re.IGNORECASE)
         if m:
             return m.group(1)
+
+        # If not found, look anywhere in the item for an image URL (jpg/png/etc.)
+        img_re = re.compile(r"https?://[^\s'\"]+?\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s'\"]*)?", re.IGNORECASE)
+        m2 = img_re.search(raw)
+        if m2:
+            return m2.group(0)
     except Exception:
         logger.debug("Failed to extract thumbnail from item", exc_info=True)
 

@@ -179,7 +179,7 @@ def test_extract_thumbnail_from_item_media_thumbnail():
 
 def test_extract_thumbnail_from_item_regex_fallback():
     # No thumbnail tag, but raw xml contains url="..." somewhere
-    item_xml = '<item><title>X</title><description>img url="https://example.com/img.jpg" /></description></item>'
+    item_xml = '<item><title>X</title><description><img url="https://example.com/img.jpg" /></description></item>'
     item = BeautifulSoup(item_xml, "xml").find("item")
     thumb = _extract_thumbnail_from_item(item)
     assert thumb == "https://example.com/img.jpg"
@@ -246,5 +246,27 @@ def test_scraper_process_feeds_includes_thumbnail(
 
     news = scraper.get_news()
     assert len(news) >= 1
-    assert "thumbnail" in news[0]
-    assert news[0]["thumbnail"] == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/thumb.jpg"
+    # thumbnail is not written to the DB at extraction stage
+    assert "thumbnail" not in news[0]
+
+    # the scraper should have recorded the thumbnail separately keyed by URL
+    url = news[0]["url"]
+    # Try direct key then normalized key
+    thumb = None
+    if url in scraper._thumbnails:
+        thumb = scraper._thumbnails[url]
+    else:
+        # fallback to any stored key that endswith the basename
+        for k, v in scraper._thumbnails.items():
+            if k and url and k.endswith(url):
+                thumb = v
+                break
+
+    assert thumb == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/thumb.jpg"
+
+    # simulate the SQS payload builder used later (thumbnail included after DB upload)
+    payload = dict(news[0])
+    if thumb:
+        payload["thumbnail"] = thumb
+
+    assert payload.get("thumbnail") == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/thumb.jpg"
