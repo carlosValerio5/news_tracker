@@ -1,12 +1,15 @@
 import logging
 import json
 from collections.abc import Callable
-from aws_handler.sqs import AwsHelper
+from sqlalchemy.exc import SQLAlchemyError
 
+from aws_handler.sqs import AwsHelper
 from database.models import ArticleKeywords, TrendsResults, News
 from helpers.database_helper import DataBaseHelper
 from jobs.worker.trends_service import GoogleTrendsService
 from jobs.worker.nlp_service import HeadlineProcessService
+from aws_handler.s3 import S3Handler
+from exceptions.s3_exceptions import S3BucketServiceError, ImageDownloadError
 
 """Worker module, bussiness logic for headline processing"""
 
@@ -22,19 +25,22 @@ class WorkerJob:
         processor_service: HeadlineProcessService,
         aws_handler: AwsHelper,
         session_factory: Callable,
+        s3_handler: S3Handler = None,
     ):
         """
         Initialize the Worker Instance
 
-        :params api: Api handler for popularity estimates
-        :processor_service: NLP processor service to extract keywords
-        :aws_handler: Instance of aws handler class.
-        :session factory: Function to create a db session.
+        :param api: Api handler for popularity estimates
+        :param processor_service: NLP processor service to extract keywords
+        :param aws_handler: Instance of aws handler class.
+        :param session_factory: Function to create a db session.
+        :param s3_handler: Instance of S3Handler to upload thumbnails.
         """
         self._api = api
         self._processor_service = processor_service
         self._aws_handler = aws_handler
         self._session_factory = session_factory
+        self._s3_handler = s3_handler
 
     def process_messages(self) -> None:
         """Extracts keywords and saves to ArticleKeywords table"""
@@ -92,6 +98,7 @@ class WorkerJob:
             session.close()
 
         ### Gtrends estimate popularity
+        """
         trends_results = self.estimate_popularity(db_keywords)
 
         if not trends_results:
@@ -105,6 +112,7 @@ class WorkerJob:
         except Exception:
             logger.exception("Failed to write trends results.")
             raise
+        """
 
     def estimate_popularity(self, result: list[dict]) -> list[dict]:
         """
@@ -166,6 +174,23 @@ class WorkerJob:
 
             news_id = payload.get("id", "")
             headline = payload.get("headline", "").strip()
+            thumbnail_url = payload.get("thumbnail", "").strip()
+
+            if thumbnail_url and news_id:
+                try:
+                    s3_url = self._s3_handler.upload_thumbnail(thumbnail_url, news_id)
+                    object_to_update = {"thumbnail": s3_url, "id": news_id}
+
+                    DataBaseHelper.update_from_dict(News, "id", object_to_update, self._session_factory, logger)
+                except SQLAlchemyError as e:
+                    # TODO add delete job for s3 object if db update fails
+                    logger.error(f"Failed to update DB for news id {news_id}: {e}")
+                except ImageDownloadError as e:
+                    logger.error(f"Failed to download image for news id {news_id}: {e}")
+                except (Exception, S3BucketServiceError) as e:
+                    logger.error(f"Failed to upload thumbnail for news id {news_id}: {e}")
+                    self._aws_handler.send_message_to_fallback_queue(message=message)
+
 
             if not news_id or not headline:
                 logger.warning("Failed to process headline, sent to fallback queue.")
