@@ -32,6 +32,7 @@ class News(Base):
     news_section = Column(String, nullable=False)
     published_at = Column(DateTime, nullable=False)
     summary = Column(String)
+    thumbnail = Column(String)
 
     keywords_id: Mapped[int] = mapped_column(ForeignKey("articlekeywords.id"))
     keywords: Mapped["ArticleKeywords"] = relationship(back_populates="news_article")

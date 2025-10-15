@@ -227,6 +227,7 @@ CREATE TABLE IF NOT EXISTS news_schema.news
     summary text COLLATE pg_catalog."default",
     published_at timestamp without time zone,
     keywords_id integer,
+    thumbnail text COLLATE pg_catalog."default",
     CONSTRAINT news_pkey PRIMARY KEY (id),
     CONSTRAINT news_keywords_id_fkey FOREIGN KEY (keywords_id)
         REFERENCES news_schema.articlekeywords (id) MATCH SIMPLE
