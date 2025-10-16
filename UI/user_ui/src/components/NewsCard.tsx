@@ -67,7 +67,7 @@ function NewsCard({ article, imageLoaded, imageFailed, priority } : NewsCardProp
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-row gap-4 items-center">
+        <div className="flex flex-row justify-between items-center">
           <h2 className="text-lg font-semibold">{article.headline}</h2>
           {article.news_section && categoryIcons[article.news_section]
             ? categoryIcons[article.news_section]
