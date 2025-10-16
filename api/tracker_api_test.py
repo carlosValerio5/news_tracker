@@ -349,6 +349,7 @@ def test_get_news_report_success(mocker):
         "News",
         (),
         {
+            "id": 1,
             "headline": "Title",
             "summary": "Some summary",
             "url": "http://url",

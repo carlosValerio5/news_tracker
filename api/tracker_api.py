@@ -325,6 +325,7 @@ def get_news_report():
 
     news_report = [
         {
+            "id": news.id,
             "headline": news.headline,
             "summary": news.summary,
             "url": news.url,
