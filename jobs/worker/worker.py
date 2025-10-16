@@ -9,7 +9,8 @@ from helpers.database_helper import DataBaseHelper
 from jobs.worker.trends_service import GoogleTrendsService
 from jobs.worker.nlp_service import HeadlineProcessService
 from aws_handler.s3 import S3Handler
-from exceptions.s3_exceptions import S3BucketServiceError, ImageDownloadError
+from exceptions.s3_exceptions import S3BucketServiceError
+from exceptions.image_exceptions import ImageDownloadError
 
 """Worker module, bussiness logic for headline processing"""
 
@@ -139,12 +140,19 @@ class WorkerJob:
                 logger.exception(
                     "Failed to extract principal keywords.", extra={"error": str(e)}
                 )
+                continue
+
+            if not principal_keyword:
+                logger.warning(
+                    "No principal keyword extracted. (worker.estimate_popularity)"
+                )
+                continue
 
             result_trends = self._api.estimate_popularity(principal_keyword)
 
             if not result_trends:
                 logger.error(
-                    "Failed to estimate popularity for keywords with id %d", id
+                    f"Failed to estimate popularity for keywords with id {id}",
                 )
                 continue
 
