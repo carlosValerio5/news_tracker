@@ -5,7 +5,9 @@ from datetime import datetime
 from urllib.parse import urlparse
 from botocore.exceptions import BotoCoreError, ClientError
 
-from exceptions.s3_exceptions import S3BucketServiceError, ImageDownloadError
+from exceptions.s3_exceptions import S3BucketServiceError
+from exceptions.image_exceptions import ImageDownloadError 
+from helpers.image_helper import ImageHelper
 
 class S3Handler:
     """Handler for AWS S3 operations."""
@@ -33,10 +35,9 @@ class S3Handler:
         :param article_id: ID of the article associated with the image.
         """
         try:
-            response = requests.get(image_url, timeout=10)
-            response.raise_for_status()
+            response = ImageHelper.download_image(image_url)
 
-            file_extension = self._get_file_extension(image_url)
+            file_extension = ImageHelper.get_file_extension(image_url)
             s3_key = f"thumbnails/{datetime.now().strftime('%Y/%m/%d')}/{article_id}{file_extension}"
             metadata = {
                 "article_id": str(article_id),
@@ -56,26 +57,9 @@ class S3Handler:
             # Location in bucket
             return f"https://{self.cdn_url}/{s3_key}"
 
-        except requests.RequestException as e:
-            raise ImageDownloadError(f"Error downloading image: {e}")
-
         except BotoCoreError as e:
             raise S3BucketServiceError(f"Error uploading to S3: {e}")
-
         except ClientError as e:
             raise S3BucketServiceError(f"Client error during S3 upload: {e}")
-
-        except Exception as e:
+        except (Exception, ImageDownloadError) as e:
             raise
-
-    def _get_file_extension(self, url):
-        parsed = urlparse(url)
-        path = parsed.path.lower()
-        if path.endswith(('.jpg', '.jpeg')):
-            return '.jpg'
-        elif path.endswith('.png'):
-            return '.png'
-        elif path.endswith('.webp'):
-            return '.webp'
-        else:
-            return '.jpg'  # default
