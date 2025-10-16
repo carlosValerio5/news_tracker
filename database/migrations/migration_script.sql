@@ -296,7 +296,7 @@ CREATE TABLE IF NOT EXISTS news_schema.trendsresults
     peak_interest integer,
     avg_interest numeric(5,2),
     current_interest integer NOT NULL,
-    data_collected_at timestamp without time zone NOT NULL,
+    data_collected_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_period_start date,
     data_period_end date,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
