@@ -97,22 +97,19 @@ class WorkerJob:
         finally:
             session.close()
 
-        ### Gtrends estimate popularity
-        """
+        # Gtrends estimate popularity
         trends_results = self.estimate_popularity(db_keywords)
 
         if not trends_results:
             logger.warning("No trends results extracted at WorkerJob.process_messages.")
-            return
-
-        try:
-            DataBaseHelper.write_batch_of_objects(
-                TrendsResults, self._session_factory, trends_results, logger
-            )
-        except Exception:
-            logger.exception("Failed to write trends results.")
-            raise
-        """
+        else:
+            try:
+                DataBaseHelper.write_batch_of_objects(
+                    TrendsResults, self._session_factory, trends_results, logger
+                )
+            except Exception:
+                logger.exception("Failed to write trends results.")
+                raise
 
     def estimate_popularity(self, result: list[dict]) -> list[dict]:
         """

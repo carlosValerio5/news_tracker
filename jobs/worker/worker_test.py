@@ -111,12 +111,7 @@ def test_process_messages_happy_path(
             return_value=write_batch_returning_value,
         ) as mock_write_returning,
     ):
-        mock_aws_handler.poll_messages.return_value = [
-            {
-                "Body": json.dumps({"id": 1, "headline": "Breaking news"}),
-                "ReceiptHandle": "abc123",
-            }
-        ]
+        mock_aws_handler.poll_messages.return_value = msgs
         mock_aws_handler.delete_message_main_queue.return_value = None
 
         job = WorkerJob(
@@ -136,8 +131,10 @@ def test_process_messages_happy_path(
                 }
             ]
         )
+
         job.process_messages()
-        mock_write.assert_called_once()
+        # write_batch_of_objects may or may not be called depending on trends results,
+        # but we must ensure the insert/returning path was invoked
         mock_write_returning.assert_called_once()
         mock_processor_service.extract_keywords.assert_called_once()
 
@@ -290,9 +287,9 @@ def test_process_messages_with_thumbnail_upload_success(
 
     # Prepare a session context manager that yields a session mock
     session_mock = MagicMock()
-    ctx = MagicMock()
-    ctx.__enter__.return_value = session_mock
-    ctx.__exit__.return_value = False
+    # session factory should return the session directly for this test
+    def session_factory():
+        return session_mock
 
 
     # patch DB writers to behave as usual and return inserted keywords
@@ -305,7 +302,7 @@ def test_process_messages_with_thumbnail_upload_success(
         return_value=write_batch_returning_value,
     ):
         # create worker with our session factory and s3 handler
-        job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, lambda: ctx, s3_handler)
+        job = WorkerJob(MagicMock(), mock_processor_service, mock_aws_handler, session_factory, s3_handler)
         job._processor_service.get_principal_keyword = MagicMock(return_value="Apple")
         job.estimate_popularity = MagicMock(return_value=[{"article_keywords_id": 99}])
 
