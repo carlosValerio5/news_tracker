@@ -9,11 +9,12 @@ from exceptions.s3_exceptions import S3BucketServiceError, ImageDownloadError
 
 class S3Handler:
     """Handler for AWS S3 operations."""
-    def __init__(self, bucket_name: str, region_name: str='us-east-2') -> None:
+    def __init__(self, bucket_name: str, cdn_url: str, region_name: str='us-east-2') -> None:
         """
         Initialize the S3 client and specify the bucket name.
 
         :param bucket_name: Name of the S3 bucket.
+        :param cdn_url: CDN URL for accessing the bucket content.
         :param region_name: AWS region where the bucket is located.
         """
         try:
@@ -21,6 +22,7 @@ class S3Handler:
         except Exception as e:
             raise S3BucketServiceError(f"Error initializing S3 client: {e}")
         self.bucket_name = bucket_name
+        self.cdn_url = cdn_url
         self.region_name = region_name
 
     def upload_thumbnail(self, image_url: str, article_id: int) -> str:
@@ -52,7 +54,7 @@ class S3Handler:
             )
 
             # Location in bucket
-            return f"https://{self.bucket_name}.s3.amazonaws.com/{s3_key}"
+            return f"https://{self.cdn_url}/{s3_key}"
 
         except requests.RequestException as e:
             raise ImageDownloadError(f"Error downloading image: {e}")
