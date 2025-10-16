@@ -1,5 +1,6 @@
 import json
 import requests
+import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import time
@@ -210,7 +211,6 @@ def _extract_thumbnail_from_item(item) -> str | None:
     an attribute named 'url' (or ending with ':url'). Falls back to an
     XML-aware regex that searches for a thumbnail tag with a url attr.
     """
-    import re
 
     try:
         # Fast path: find tags named 'media:thumbnail' or any tag ending with ':thumbnail' or 'thumbnail'
@@ -219,7 +219,7 @@ def _extract_thumbnail_from_item(item) -> str | None:
             if not isinstance(name, str):
                 continue
             lname = name.lower()
-            if lname == "media:thumbnail" or lname.endswith(":thumbnail") or lname.endswith("thumbnail"):
+            if "thumbnail" in lname:
                 # Prefer explicit 'url' attribute, but accept namespaced attr keys like 'media:url' too
                 # Check common attribute keys first
                 for key in ("url", "href", "src"):
