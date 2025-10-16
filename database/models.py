@@ -94,7 +94,7 @@ class TrendsResults(Base):
     data_period_start = Column(Date)
     data_period_end = Column(Date)
     updated_at = Column(DateTime, server_default=func.now())
-    geo = Column(String)
+    geo = Column(String, server_default="Worldwide", nullable=False)
 
     article_keywords_id: Mapped[int] = mapped_column(ForeignKey("articlekeywords.id"))
     article_keyword: Mapped["ArticleKeywords"] = relationship(

@@ -300,7 +300,7 @@ CREATE TABLE IF NOT EXISTS news_schema.trendsresults
     data_period_start date,
     data_period_end date,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    geo text COLLATE pg_catalog."default" NOT NULL,
+    geo text COLLATE pg_catalog."default" NOT NULL DEFAULT 'Worldwide'::text,
     article_keywords_id integer NOT NULL,
     CONSTRAINT trendsresults_pkey PRIMARY KEY (id),
     CONSTRAINT trends_results_article_keywords_id_fkey FOREIGN KEY (article_keywords_id)
