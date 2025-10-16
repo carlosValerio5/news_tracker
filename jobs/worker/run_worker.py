@@ -24,12 +24,12 @@ def run_worker():
     QUEUE_URL = os.getenv("MAIN_QUEUE_URL")
     FALLBACK_QUEUE_URL = os.getenv("FALLBACK_QUEUE_URL")
     BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-    CDN_URL = os.getenv("CDN_URL")
+    CDN_DOMAIN_NAME = os.getenv("CDN_DOMAIN_NAME")
 
     google_trends = GoogleTrendsService(TRENDS_BASE_URL, API_KEY)
     nlp_processor = HeadlineProcessService()
     aws_helper = AwsHelper(queue_url=QUEUE_URL, fallback_queue_url=FALLBACK_QUEUE_URL)
-    s3_handler = S3Handler(BUCKET_NAME, CDN_URL)
+    s3_handler = S3Handler(BUCKET_NAME, CDN_DOMAIN_NAME)
 
     worker = WorkerJob(
         google_trends, nlp_processor, aws_helper, session_factory, s3_handler
