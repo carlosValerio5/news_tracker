@@ -19,16 +19,17 @@ def session_factory():
 
 def run_worker():
     load_dotenv()
-    trends_base_url = os.getenv("GOOGLE_TRENDS_URL")
-    api_key = os.getenv("SERP_API_KEY")
-    queue_url = os.getenv("MAIN_QUEUE_URL")
-    fallback_queue_url = os.getenv("FALLBACK_QUEUE_URL")
+    TRENDS_BASE_URL = os.getenv("GOOGLE_TRENDS_URL")
+    API_KEY = os.getenv("SERP_API_KEY")
+    QUEUE_URL = os.getenv("MAIN_QUEUE_URL")
+    FALLBACK_QUEUE_URL = os.getenv("FALLBACK_QUEUE_URL")
     BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+    CDN_URL = os.getenv("CDN_URL")
 
-    google_trends = GoogleTrendsService(trends_base_url, api_key)
+    google_trends = GoogleTrendsService(TRENDS_BASE_URL, API_KEY)
     nlp_processor = HeadlineProcessService()
-    aws_helper = AwsHelper(queue_url=queue_url, fallback_queue_url=fallback_queue_url)
-    s3_handler = S3Handler(BUCKET_NAME)
+    aws_helper = AwsHelper(queue_url=QUEUE_URL, fallback_queue_url=FALLBACK_QUEUE_URL)
+    s3_handler = S3Handler(BUCKET_NAME, CDN_URL)
 
     worker = WorkerJob(google_trends, nlp_processor, aws_helper, session_factory, s3_handler)
 
