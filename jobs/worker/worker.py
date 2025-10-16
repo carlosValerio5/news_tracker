@@ -253,6 +253,8 @@ class WorkerJob:
             if composed_query in seen:
                 continue
 
+            seen.add(composed_query)
+
             insert_payload.append(
                 {
                     k: entry[k]
