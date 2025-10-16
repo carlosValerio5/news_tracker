@@ -229,20 +229,31 @@ def _extract_thumbnail_from_item(item) -> str | None:
 
                 # Check any attribute whose local name ends with 'url' (handles namespaced attributes)
                 for k, v in tag.attrs.items():
-                    if isinstance(k, str) and k.lower().endswith(":url") or (
-                        isinstance(k, str) and k.lower().endswith("url") and k.lower() != "url"
+                    if (
+                        isinstance(k, str)
+                        and k.lower().endswith(":url")
+                        or (
+                            isinstance(k, str)
+                            and k.lower().endswith("url")
+                            and k.lower() != "url"
+                        )
                     ):
                         if isinstance(v, str) and v.strip():
                             return v.strip()
 
         # Fallback: first attempt to find a thumbnail tag with a url attribute
         raw = str(item)
-        m = re.search(r"<[^>]*thumbnail[^>]*\surl\s*=\s*\"([^\"]+)\"", raw, re.IGNORECASE)
+        m = re.search(
+            r"<[^>]*thumbnail[^>]*\surl\s*=\s*\"([^\"]+)\"", raw, re.IGNORECASE
+        )
         if m:
             return m.group(1)
 
         # If not found, look anywhere in the item for an image URL (jpg/png/etc.)
-        img_re = re.compile(r"https?://[^\s'\"]+?\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s'\"]*)?", re.IGNORECASE)
+        img_re = re.compile(
+            r"https?://[^\s'\"]+?\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s'\"]*)?",
+            re.IGNORECASE,
+        )
         m2 = img_re.search(raw)
         if m2:
             return m2.group(0)
@@ -304,10 +315,15 @@ def run_scraping_job():
     if not results:
         logger.error("Failed to write objects to db.")
         return
+
     # send to sqs queue — include thumbnail in the SQS payload but don't write it to DB
     def sqs_payload(item):
         try:
-            url = item.get("url") if isinstance(item, dict) else getattr(item, "url", None)
+            url = (
+                item.get("url")
+                if isinstance(item, dict)
+                else getattr(item, "url", None)
+            )
             thumbnail = scraper._thumbnails.get(url)
         except Exception:
             thumbnail = None

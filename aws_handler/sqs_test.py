@@ -64,7 +64,7 @@ def test_send_message_success(aws_helper, mock_queue):
                 "StringValue": "False",
                 "DataType": "String",
             }
-        }
+        },
     )
 
 

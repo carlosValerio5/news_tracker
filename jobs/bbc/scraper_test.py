@@ -165,13 +165,13 @@ def test_scraper_process_feeds(
 
 
 def test_extract_thumbnail_from_item_media_thumbnail():
-    item_xml = '''
+    item_xml = """
     <item>
       <title>With Thumb</title>
       <link>https://bbc.co.uk/news/article-1</link>
       <media:thumbnail width="240" height="134" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/sample.jpg"/>
     </item>
-    '''
+    """
     item = BeautifulSoup(item_xml, "xml").find("item")
     thumb = _extract_thumbnail_from_item(item)
     assert thumb == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/sample.jpg"
@@ -269,4 +269,7 @@ def test_scraper_process_feeds_includes_thumbnail(
     if thumb:
         payload["thumbnail"] = thumb
 
-    assert payload.get("thumbnail") == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/thumb.jpg"
+    assert (
+        payload.get("thumbnail")
+        == "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/thumb.jpg"
+    )

@@ -31,7 +31,9 @@ def run_worker():
     aws_helper = AwsHelper(queue_url=QUEUE_URL, fallback_queue_url=FALLBACK_QUEUE_URL)
     s3_handler = S3Handler(BUCKET_NAME, CDN_URL)
 
-    worker = WorkerJob(google_trends, nlp_processor, aws_helper, session_factory, s3_handler)
+    worker = WorkerJob(
+        google_trends, nlp_processor, aws_helper, session_factory, s3_handler
+    )
 
     while True:
         try:

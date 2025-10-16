@@ -186,16 +186,19 @@ class WorkerJob:
                     s3_url = self._s3_handler.upload_thumbnail(thumbnail_url, news_id)
                     object_to_update = {"thumbnail": s3_url, "id": news_id}
 
-                    DataBaseHelper.update_from_dict(News, "id", object_to_update, self._session_factory, logger)
+                    DataBaseHelper.update_from_dict(
+                        News, "id", object_to_update, self._session_factory, logger
+                    )
                 except SQLAlchemyError as e:
                     # TODO add delete job for s3 object if db update fails
                     logger.error(f"Failed to update DB for news id {news_id}: {e}")
                 except ImageDownloadError as e:
                     logger.error(f"Failed to download image for news id {news_id}: {e}")
                 except (Exception, S3BucketServiceError) as e:
-                    logger.error(f"Failed to upload thumbnail for news id {news_id}: {e}")
+                    logger.error(
+                        f"Failed to upload thumbnail for news id {news_id}: {e}"
+                    )
                     self._aws_handler.send_message_to_fallback_queue(message=message)
-
 
             if not news_id or not headline:
                 logger.warning("Failed to process headline, sent to fallback queue.")

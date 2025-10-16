@@ -88,9 +88,11 @@ class AwsHelper:
                         "StringValue": str(has_thumbnail),
                         "DataType": "String",
                     }
-                }
+                },
             )
-            logger.info(f"Message sent to SQS with SequenceNumber: {response['SequenceNumber']}")
+            logger.info(
+                f"Message sent to SQS with SequenceNumber: {response['SequenceNumber']}"
+            )
         except Exception as e:
             logger.error(f"Message could not be sent: {e}", extra={"error": e})
 

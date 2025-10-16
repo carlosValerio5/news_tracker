@@ -1,9 +1,11 @@
 """Helper functions for image processing and uploading to S3."""
+
 import requests
 from urllib.parse import urlparse
 from requests import Response, RequestException
 
 from exceptions.image_exceptions import ImageDownloadError
+
 
 class ImageHelper:
     """Helper class for image processing and uploading to S3."""
@@ -28,7 +30,9 @@ class ImageHelper:
                 error = str(e)
                 continue
 
-        raise ImageDownloadError(f"Error downloading image after {max_retries} attempts: {error}")
+        raise ImageDownloadError(
+            f"Error downloading image after {max_retries} attempts: {error}"
+        )
 
     @staticmethod
     def get_file_extension(url) -> str:
@@ -40,11 +44,11 @@ class ImageHelper:
         """
         parsed = urlparse(url)
         path = parsed.path.lower()
-        if path.endswith(('.jpg', '.jpeg')):
-            return '.jpg'
-        elif path.endswith('.png'):
-            return '.png'
-        elif path.endswith('.webp'):
-            return '.webp'
+        if path.endswith((".jpg", ".jpeg")):
+            return ".jpg"
+        elif path.endswith(".png"):
+            return ".png"
+        elif path.endswith(".webp"):
+            return ".webp"
         else:
-            return '.jpg'  # default
+            return ".jpg"  # default
