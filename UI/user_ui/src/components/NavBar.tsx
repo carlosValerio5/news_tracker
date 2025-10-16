@@ -3,7 +3,7 @@ import SearchBar from "./SearchBar";
 import RegisterButton from "./RegisterButton";
 import { Link } from "react-router-dom";
 
-const NavBar: React.FC = () => {
+const NavBar: React.FC<{ scroll?: boolean }> = ({ scroll = false }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -15,14 +15,22 @@ const NavBar: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const navClass = scrolled
+    ? "bg-gray-100 text-black shadow-md"
+    : scroll
+    ? "bg-black text-white"
+    : "bg-white text-black";
+
   return (
     <nav
-      className={`w-full flex flex-col sm:flex-row items-center p-4 sticky top-0 z-50 transition-colors duration-300 ${scrolled ? "bg-gray-100 text-black shadow-md" : "bg-white text-black"}`}
+      className={`w-full flex flex-col sm:flex-row items-center p-4 sticky top-0 z-50 transition-colors duration-300 ${navClass}`}
     >
       {/* Logo and Hamburger */}
       <div className="w-full flex items-center justify-between sm:justify-start mb-2 sm:mb-0">
         <div className="text-sm sm:text-xl">
-          <Link to="/">NewsTracker</Link>
+          <Link to="/" className="text-current font-semibold">
+            NewsTracker
+          </Link>
         </div>
         {/* Hamburger icon for mobile */}
         <button
@@ -71,7 +79,7 @@ const NavBar: React.FC = () => {
         {/* News Section */}
         <Link
           to="/news"
-          className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition"
+          className="text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition"
         >
           News
         </Link>
@@ -81,11 +89,11 @@ const NavBar: React.FC = () => {
 
       {/* Dropdown menu for mobile */}
       {menuOpen && (
-        <div className="sm:hidden absolute top-full left-0 w-full bg-white shadow-md z-10 flex flex-col items-center gap-2 py-4">
+        <div className={`sm:hidden absolute top-full left-0 w-full ${scrolled ? 'bg-white' : scroll ? 'bg-black' : 'bg-white'} shadow-md z-10 flex flex-col items-center gap-2 py-4`}>
           <SearchBar />
           <Link
             to="/news"
-            className="text-gray-400 text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center"
+            className={`text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center`}
           >
             News
           </Link>

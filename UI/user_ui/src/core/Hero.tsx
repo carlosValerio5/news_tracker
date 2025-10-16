@@ -3,20 +3,17 @@ import { ButtonType } from "../components/RegisterButton";
 
 function Hero() {
   return (
-    <div className="w-full sm:ml-5 sm:mt-10 mb-6">
-      <h1 className="ml-3 text-2xl font-bold sm:text-4xl">Stay tuned</h1>
-      <p className="ml-3 my-4 text-gray-500 font-light text-xs sm:text-base">
-        Register to be notified about the latest news.
-      </p>
-      <RegisterButton type={ButtonType.PRIMARY} className="ml-3 " />
-      <div className="w-full p-10 lg:p-15 max-h-[400px] overflow-clip">
-        <img
-          className="w-full h-auto mt-4 mx-auto"
-          src="/src/assets/images/utsav-srestha-HeNrEdA4Zp4-unsplash.jpg"
-          alt="newspaper image"
-        />
+    <section className="w-full min-h-screen flex items-center sm:ml-5 sm:mt-0 mb-6" aria-label="Hero">
+      <div className="p-6 md:p-12 max-w-4xl ml-3 sm:ml-6 text-left rounded">
+        <h1 className="text-3xl font-bold sm:text-5xl text-white">Stay Tuned With Zero Manual Effort</h1>
+        <p className="mt-4 text-gray-400 font-light text-sm sm:text-base">
+          Register to be notified about the latest news.
+        </p>
+        <div className="mt-6">
+          <RegisterButton type={ButtonType.PRIMARY} />
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 

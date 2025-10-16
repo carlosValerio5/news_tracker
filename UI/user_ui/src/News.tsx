@@ -7,7 +7,7 @@ function News() {
     <div>
       <NavBar />
       <NewsCardsSection />
-      <Footer />
+      <Footer fixed={true} />
     </div>
   );
 }
