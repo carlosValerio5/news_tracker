@@ -353,6 +353,7 @@ def test_get_news_report_success(mocker):
             "summary": "Some summary",
             "url": "http://url",
             "news_section": "Tech",
+            "thumbnail": "http://thumb",
         },
     )()
     mock_trends = type(
