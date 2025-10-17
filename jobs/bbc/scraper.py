@@ -1,5 +1,6 @@
 import json
 import requests
+import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import time
@@ -25,6 +26,8 @@ class Scraper:
         self._rss_feeds: list[str] = self._extract_rss_feeds()
         self._news: list[dict] = []
         self._headlines: list[str] = []
+        # keep thumbnails separate; do not write them to DB at this stage
+        self._thumbnails: dict[str, str | None] = {}
 
     def get_headlines(self) -> list:
         return self._headlines
@@ -37,6 +40,9 @@ class Scraper:
 
     def get_news(self) -> list:
         return self._news
+
+    def get_thumbnails(self) -> dict:
+        return self._thumbnails
 
     def _extract_rss_feeds(self) -> list:
         if len(self._navbar_links) == 0:
@@ -133,6 +139,9 @@ class Scraper:
 
                 summary = item.find("description").get_text().strip()
 
+                # extract thumbnail if present
+                thumbnail = _extract_thumbnail_from_item(item)
+
                 key = (url, headline)
                 if key in seen:
                     continue
@@ -146,6 +155,8 @@ class Scraper:
                     "summary": summary,
                 }
                 self._headlines.append(headline)
+                # store thumbnail separately (may be None)
+                self._thumbnails[url] = thumbnail
                 self._news.append(news)
 
             time.sleep(1)
@@ -188,6 +199,68 @@ def extract_section_from_url(url: str) -> str:
         except ValueError:
             pass
     return parts[-2]
+
+
+def _extract_thumbnail_from_item(item) -> str | None:
+    """Extract the thumbnail URL from an RSS <item> element.
+
+    Fast-path: handle tags like
+      <media:thumbnail width="240" height="134" url="https://...jpg"/>
+
+    The function checks for namespaced 'thumbnail' tags then looks for
+    an attribute named 'url' (or ending with ':url'). Falls back to an
+    XML-aware regex that searches for a thumbnail tag with a url attr.
+    """
+
+    try:
+        # Fast path: find tags named 'media:thumbnail' or any tag ending with ':thumbnail' or 'thumbnail'
+        for tag in item.find_all():
+            name = getattr(tag, "name", "")
+            if not isinstance(name, str):
+                continue
+            lname = name.lower()
+            if "thumbnail" in lname:
+                # Prefer explicit 'url' attribute, but accept namespaced attr keys like 'media:url' too
+                # Check common attribute keys first
+                for key in ("url", "href", "src"):
+                    val = tag.get(key)
+                    if val and isinstance(val, str) and val.strip():
+                        return val.strip()
+
+                # Check any attribute whose local name ends with 'url' (handles namespaced attributes)
+                for k, v in tag.attrs.items():
+                    if (
+                        isinstance(k, str)
+                        and k.lower().endswith(":url")
+                        or (
+                            isinstance(k, str)
+                            and k.lower().endswith("url")
+                            and k.lower() != "url"
+                        )
+                    ):
+                        if isinstance(v, str) and v.strip():
+                            return v.strip()
+
+        # Fallback: first attempt to find a thumbnail tag with a url attribute
+        raw = str(item)
+        m = re.search(
+            r"<[^>]*thumbnail[^>]*\surl\s*=\s*\"([^\"]+)\"", raw, re.IGNORECASE
+        )
+        if m:
+            return m.group(1)
+
+        # If not found, look anywhere in the item for an image URL (jpg/png/etc.)
+        img_re = re.compile(
+            r"https?://[^\s'\"]+?\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s'\"]*)?",
+            re.IGNORECASE,
+        )
+        m2 = img_re.search(raw)
+        if m2:
+            return m2.group(0)
+    except Exception:
+        logger.debug("Failed to extract thumbnail from item", exc_info=True)
+
+    return None
 
 
 def run_scraping_job():
@@ -233,17 +306,35 @@ def run_scraping_job():
             session_factory,
             scraper.get_news(),
             logger,
-            [News.id, News.headline],
+            [News.id, News.headline, News.url],
             ["url", "headline"],
         )
     except Exception as e:
-        logger.error("Failed to write messages to db", extra={"error": e})
+        logger.exception("Failed to write messages to db", extra={"error": e})
 
     if not results:
         logger.error("Failed to write objects to db.")
         return
-    # send to sqs queue
-    aws_helper.send_batch(results, "headlines", lambda item: json.dumps(item))
+
+    # send to sqs queue — include thumbnail in the SQS payload but don't write it to DB
+    def sqs_payload(item):
+        try:
+            url = (
+                item.get("url")
+                if isinstance(item, dict)
+                else getattr(item, "url", None)
+            )
+            thumbnail = scraper._thumbnails.get(url)
+        except Exception:
+            thumbnail = None
+        # create a shallow copy and add thumbnail if available
+        payload = dict(item) if isinstance(item, dict) else item.__dict__
+        if thumbnail:
+            payload["thumbnail"] = thumbnail
+        return json.dumps(payload)
+
+    aws_helper.send_batch(results, "headlines", transform_function=sqs_payload)
+    logger.info(f"Thumbnails count: {len(scraper.get_thumbnails())}")
     logger.info(f"Headlines count: {len(scraper.get_headlines())}")
 
 

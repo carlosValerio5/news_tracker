@@ -31,10 +31,10 @@ class GoogleTrendsService:
         try:
             payload = self.get_api_payload(keyword)
         except HTTPError:
-            logger.exception("Failed to make request to %s", self._base_url)
+            logger.exception(f"Failed to make request to {self._base_url}")
             return
-        except Exception:
-            logger.exception("Unexpected error ocurred.")
+        except Exception as e:
+            logger.exception(f"Unexpected error ocurred: {e}")
             return
 
         current_interest = self.get_current_interest(payload)
@@ -47,7 +47,7 @@ class GoogleTrendsService:
             return None
 
         logger.info(
-            "Current interest %d\nPeak interest: %d", current_interest, peak_interest
+            f"Current interest {current_interest}\nPeak interest: {peak_interest}"
         )
         # return (current_interest, peak_interest)
 
@@ -89,8 +89,8 @@ class GoogleTrendsService:
         except HTTPError:
             logger.exception("Failed to make request.")
             raise
-        except Exception:
-            logger.warning("Unexpected error ocurred.")
+        except Exception as e:
+            logger.warning(f"Unexpected error ocurred: {e}")
             raise
 
         return json.loads(r.text)

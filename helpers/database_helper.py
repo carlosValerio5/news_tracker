@@ -276,3 +276,50 @@ class DataBaseHelper:
         except Exception as e:
             logger.exception("Unexpected error occurred", extra={"error": str(e)})
             raise
+
+    @staticmethod
+    def update_from_dict(
+        object_type,
+        unique_field: str,
+        object_to_update: dict,
+        session_factory: Callable,
+        logger,
+    ):
+        """
+        Updates a single sqlalchemy object to db based on the unique field.
+
+        :param object_type: The class which is mapped to the data base table
+        :param unique_field: The field name that is unique in the table.
+        :param object_to_update: Single object to update.
+        :param session_factory: Factory function to create a data base session.
+        :param logger: Logger object to handle logging logic.
+        """
+        try:
+            with session_factory() as session:
+                stmt = (
+                    update(object_type)
+                    .where(
+                        getattr(object_type, unique_field)
+                        == object_to_update[unique_field]
+                    )
+                    .values(
+                        {
+                            k: v
+                            for k, v in object_to_update.items()
+                            if k != unique_field
+                        }  # avoid updating the unique field
+                    )
+                )
+                result = session.execute(stmt)
+                session.commit()
+                if result.rowcount == 0:
+                    logger.warning(
+                        f"No rows updated for {object_type.__tablename__} with {unique_field}={object_to_update[unique_field]}"
+                    )
+
+        except SQLAlchemyError as e:
+            logger.exception("Failed to update object in db", extra={"error": str(e)})
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error occurred", extra={"error": str(e)})
+            raise

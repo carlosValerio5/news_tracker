@@ -1,10 +1,9 @@
 import boto3
 import json
-import logging
 from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
 from exceptions.sqs_exceptions import NoSQSFoundException, SQSMessageBatchNotSent
 
-logger = logging.getLogger(__name__)
+from logger.logging_config import logger
 
 """sqs handler module containing bussiness logic for publishing and consuming sqs"""
 
@@ -65,20 +64,37 @@ class AwsHelper:
 
         return client
 
-    def send_message(self, headline: str):
+    def send_message(self, headline: str, message_body: dict | None = None):
         """
         Send a single message
 
         :param headline: The headline of the news article
+        :param message_body: The body of the message (optional)
         """
+
+        if message_body:
+            body = json.dumps(message_body)
+        else:
+            body = headline
+
+        has_thumbnail = bool(message_body and message_body.get("thumbnail"))
 
         try:
             response = self._QUEUE.send_message(
-                MessageBody=headline, MessageGroupId="headlines"
+                MessageBody=body,
+                MessageGroupId="headlines",
+                MessageAttributes={
+                    "has_thumbnail": {
+                        "StringValue": str(has_thumbnail),
+                        "DataType": "String",
+                    }
+                },
             )
-            print(response["SequenceNumber"])
+            logger.info(
+                f"Message sent to SQS with SequenceNumber: {response['SequenceNumber']}"
+            )
         except Exception as e:
-            print(f"Message could not be sent: {e}")
+            logger.error(f"Message could not be sent: {e}", extra={"error": e})
 
     def send_batch(
         self,

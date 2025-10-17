@@ -55,19 +55,24 @@ def test_send_message_success_fails_without_url(patch_boto3_resource, mock_queue
 
 def test_send_message_success(aws_helper, mock_queue):
     aws = aws_helper
-    aws.send_message("Breaking news: AI beats chess grandmaster.")
+    aws.send_message(headline="Breaking news: AI beats chess grandmaster.")
     mock_queue.send_message.assert_called_once_with(
         MessageBody="Breaking news: AI beats chess grandmaster.",
         MessageGroupId="headlines",
+        MessageAttributes={
+            "has_thumbnail": {
+                "StringValue": "False",
+                "DataType": "String",
+            }
+        },
     )
 
 
-def test_send_message_exception(aws_helper, capsys, mock_queue):
+def test_send_message_exception(aws_helper, capsys, mock_queue, caplog):
     mock_queue.send_message.side_effect = Exception("SQS error")
     aws = aws_helper
     aws.send_message("Will not send")
-    captured = capsys.readouterr()
-    assert "Message could not be sent: SQS error" in captured.out
+    assert "Message could not be sent: SQS error" in caplog.text
 
 
 def test_send_batch_single_batch(aws_helper):

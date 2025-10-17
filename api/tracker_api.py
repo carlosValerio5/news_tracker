@@ -325,12 +325,14 @@ def get_news_report():
 
     news_report = [
         {
+            "id": news.id,
             "headline": news.headline,
             "summary": news.summary,
             "url": news.url,
             "peak_interest": trends.peak_interest,
             "current_interest": trends.current_interest,
             "news_section": news.news_section,
+            "thumbnail": news.thumbnail,
         }
         for news, trends in results
         if trends.has_data
