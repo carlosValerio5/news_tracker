@@ -6,6 +6,9 @@ import FeaturesSection from "./core/FeaturesSection";
 import SeeAlsoSection from "./core/SeeAlsoSection";
 import SubscribeStrip from "./components/SubscribeStrip";
 import Footer from "./components/Footer";
+import { CDN_DOMAIN_NAME } from "./env";
+
+const heroBg = `https://${CDN_DOMAIN_NAME}/landing/hero-background.jpg`;
 
 function Landing() {
   const [faded, setFaded] = useState(false);
@@ -36,9 +39,13 @@ function Landing() {
       {/* Full-viewport solid black background that fades after one screen */}
       <div
         aria-hidden="true"
-        className={`fixed inset-x-0 top-0 h-screen bg-black transition-opacity duration-700 ease-in-out pointer-events-none ${
+        className={`fixed inset-x-0 top-0 h-screen bg-cover bg-center transition-opacity duration-700 ease-in-out pointer-events-none ${
           faded ? "opacity-0" : "opacity-100"
         }`}
+        style={{
+          backgroundImage: `url(${heroBg})`,
+          backgroundColor: "#000", // fallback while image loads
+        }}
       />
 
       <NavBar scroll={true} />
