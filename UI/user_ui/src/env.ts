@@ -12,4 +12,7 @@ export const API_BASE: string =
 export const GOOGLE_CLIENT_ID: string | undefined =
   g.__VITE_GOOGLE_CLIENT_ID__ ?? undefined;
 
-export default { API_BASE, GOOGLE_CLIENT_ID };
+export const CDN_DOMAIN_NAME: string | undefined =
+  g.__VITE_CDN_DOMAIN_NAME__ ?? undefined;
+
+export default { API_BASE, GOOGLE_CLIENT_ID, CDN_DOMAIN_NAME };
