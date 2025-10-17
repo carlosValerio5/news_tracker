@@ -20,7 +20,7 @@ function Landing() {
         window.requestAnimationFrame(() => {
           // Fade out the background over the first viewport height
           const progress = Math.min(window.scrollY / window.innerHeight, 1);
-          setFaded(progress >= 0.10);
+          setFaded(progress >= 0.1);
           ticking.current = false;
         });
         ticking.current = true;

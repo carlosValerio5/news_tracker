@@ -28,11 +28,17 @@ describe("Hero component", () => {
     );
 
     // Wait for LatestNewsSection async effect to finish to avoid act(...) warnings
-    await waitFor(() => expect(screen.queryByText(/Loading latest news.../i)).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Loading latest news.../i),
+      ).not.toBeInTheDocument(),
+    );
 
     // Heading
     expect(
-      screen.getByRole("heading", { name: /Stay Tuned With Zero Manual Effort/i }),
+      screen.getByRole("heading", {
+        name: /Stay Tuned With Zero Manual Effort/i,
+      }),
     ).toBeInTheDocument();
 
     // Paragraph
@@ -40,20 +46,25 @@ describe("Hero component", () => {
       screen.getByText(/Register to be notified about the latest news./i),
     ).toBeInTheDocument();
 
-  // Mocked RegisterButton inside the Hero section is rendered and receives the props
-  const heroSection = screen.getByLabelText("Hero");
-  const register = within(heroSection).getByTestId("mock-register");
+    // Mocked RegisterButton inside the Hero section is rendered and receives the props
+    const heroSection = screen.getByLabelText("Hero");
+    const register = within(heroSection).getByTestId("mock-register");
     expect(register).toBeInTheDocument();
     // The mock spreads props to the anchor so we can inspect them
     expect(register.getAttribute("type")).toBe("PRIMARY");
     // If a class attribute was passed, ensure it includes the expected spacing class
-    const classAttr = register.getAttribute("class") ?? register.getAttribute("className") ?? "";
+    const classAttr =
+      register.getAttribute("class") ??
+      register.getAttribute("className") ??
+      "";
     if (classAttr) {
       expect(classAttr).toContain("ml-3");
     }
 
     // The landing page background should be an image (decorative fixed element)
-    const background = container.querySelector('div[aria-hidden="true"].fixed') as HTMLElement | null;
+    const background = container.querySelector(
+      'div[aria-hidden="true"].fixed',
+    ) as HTMLElement | null;
     expect(background).toBeTruthy();
     // inline style should contain a url(...) string when the background is set
     expect(background?.style.backgroundImage).toMatch(/url\(/);

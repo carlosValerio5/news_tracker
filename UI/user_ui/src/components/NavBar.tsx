@@ -21,10 +21,14 @@ const NavBar: React.FC<NavBarProps> = ({ scroll = false }) => {
   const navClass = scrolled
     ? "bg-gray-100 text-black shadow-md"
     : scroll
-    ? "bg-transparent text-white"
-    : "bg-white text-black";
+      ? "bg-transparent text-white"
+      : "bg-white text-black";
 
-  const dropdownBg = scrolled ? "bg-white" : scroll ? "bg-transparent text-white" : "bg-white";
+  const dropdownBg = scrolled
+    ? "bg-white"
+    : scroll
+      ? "bg-transparent text-white"
+      : "bg-white";
 
   return (
     <nav
@@ -43,12 +47,34 @@ const NavBar: React.FC<NavBarProps> = ({ scroll = false }) => {
           onClick={() => setMenuOpen((open) => !open)}
         >
           {menuOpen ? (
-            <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              width="28"
+              height="28"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           ) : (
-            <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              width="28"
+              height="28"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           )}
         </button>
@@ -56,16 +82,24 @@ const NavBar: React.FC<NavBarProps> = ({ scroll = false }) => {
 
       <div className="hidden sm:flex w-full sm:w-auto flex-col sm:flex-row items-center sm:justify-end gap-2 sm:gap-6 ml-auto">
         <SearchBar />
-        <Link to="/news" className="text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition">
+        <Link
+          to="/news"
+          className="text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition"
+        >
           News
         </Link>
         <RegisterButton type="SECONDARY" />
       </div>
 
       {menuOpen && (
-        <div className={`sm:hidden absolute top-full left-0 w-full ${dropdownBg} shadow-md z-10 flex flex-col items-center gap-2 py-4`}>
+        <div
+          className={`sm:hidden absolute top-full left-0 w-full ${dropdownBg} shadow-md z-10 flex flex-col items-center gap-2 py-4`}
+        >
           <SearchBar />
-          <Link to="/news" className="text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center">
+          <Link
+            to="/news"
+            className="text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center"
+          >
             News
           </Link>
           <RegisterButton type="SECONDARY" />
