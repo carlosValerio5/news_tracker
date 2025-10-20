@@ -11,6 +11,8 @@ from typing import Optional
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select, func, case
 from datetime import timedelta, timezone
+from pydantic.type_adapter import TypeAdapter
+from dataclasses import asdict
 
 from database import models
 from database.data_base import engine
@@ -22,13 +24,19 @@ from api.auth.scopes import Scope
 from api.auth.jwt_service import JWTService
 from api.pydantic_models.admin_config import AdminConfig
 from api.pydantic_models.activities import Activity, ActivitiesResponse
+from cache.redis import RedisService
+from exceptions.cache_exceptions import CacheMissError
+from cache.activity_dataclass import ActivitiesResponse as ActivitiesResponseDataclass
+from cache.activity_dataclass import Activity as ActivityDataClass
 
 load_dotenv()
 security = HTTPBearer()
 
 jwt_secret = os.getenv("JWT_SECRET_KEY")
 jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
-
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_PASSWORD = REDIS_PASSWORD if REDIS_PASSWORD else None
 
 def session_factory():
     """Factory to create new SQLAlchemy sessions"""
@@ -36,6 +44,7 @@ def session_factory():
 
 
 jwt_service = JWTService(secret_key=jwt_secret, algorithm=jwt_algorithm)
+type_adapter_Activity = TypeAdapter(ActivityDataClass)
 
 
 def get_current_user(
@@ -337,6 +346,22 @@ async def get_recent_activities(
     :param activity_type: Optional filter by activity type.
     :return: ActivitiesResponse containing a list of recent activities.
     """
+    redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
+    cache_key = redis_service._get_cache_key("recent_activities", datetime.now())
+    try:
+        cached_data = redis_service.get_cached_data(cache_key, datetime.now(), ActivitiesResponseDataclass)
+
+        if cached_data:
+            logger.info("Cache hit for recent activities.")
+            cached_obj = cached_data[0]  # ActivitiesResponseDataclass
+            # convert dataclass -> dict, then validate into the Pydantic response model
+            return ActivitiesResponse.model_validate(asdict(cached_obj))
+
+    except CacheMissError:
+        logger.info("No cached recent activities found.")
+    except Exception as e:
+        logger.error(f"Error retrieving recent activities from cache: {e}")
+
     try:
         with session_factory() as session:
             stmt = select(models.RecentActivity)
@@ -354,11 +379,17 @@ async def get_recent_activities(
             )
             results = session.execute(stmt).scalars().all()
 
-            activities = [Activity.model_validate(activity) for activity in results]
+            activities = [type_adapter_Activity.validate_python(activity.__dict__) for activity in results]
 
-            return ActivitiesResponse(
+            activities_response = ActivitiesResponseDataclass(
                 activities=activities, total=total, limit=limit, offset=offset
             )
+
+            if redis_service:
+                # TTL set to 1 hour
+                redis_service.set_cached_data(cache_key, datetime.now(), activities_response, expire_seconds=3600)
+
+            return activities_response
     except SQLAlchemyError as e:
         logger.exception(
             "Failed to retrieve report information", extra={"error": str(e)}

@@ -4,14 +4,16 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
+from pydantic.type_adapter import TypeAdapter
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, date
-from typing import Union
+from typing import Union, List
 from dotenv import load_dotenv
 
 from api.routers.admin import admin_router
+from cache.news_dataclass import NewsReportData
 from database.data_base import engine
 from helpers.database_helper import DataBaseHelper
 from logger.logging_config import logger
@@ -20,7 +22,6 @@ from api.auth.jwt_service import JWTService
 from api.auth.auth_service import SecurityService
 from exceptions.auth_exceptions import GoogleIDMismatchException
 from cache.redis import RedisService
-from cache.news_report import NewsReport
 from exceptions.cache_exceptions import CacheMissError
 
 app = FastAPI()
@@ -37,6 +38,17 @@ class News(BaseModel):
 
 class NewsList(BaseModel):
     news: list[News]
+
+
+class NewsItem(BaseModel):
+    id: str
+    headline: str
+    summary: str
+    url: str
+    peak_interest: int
+    current_interest: int
+    news_section: str
+    thumbnail: str | None
 
 
 def session_factory():
@@ -301,7 +313,7 @@ def post_headline(news: Union[News, NewsList]):
     return news
 
 
-@app.get("/news-report", status_code=200)
+@app.get("/news-report", status_code=200, response_model=List[NewsItem])
 def get_news_report():
     """
     Gets the current news report.
@@ -322,16 +334,18 @@ def get_news_report():
 
     redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
 
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    key = redis_service._get_cache_key("daily_news_report", today)
+    today = datetime.now()
 
     try:
-        cached_report = redis_service.get_cached_data(key, today, NewsReport)
+        cached_report = redis_service.get_cached_data("daily_news_report", today, NewsReportData)
         if cached_report:
             logger.info("Returning news report from cache.")
-            return cached_report
-    except CacheMissError:
-        logger.info("No cached news report found, generating new report.")
+            # Convert cached NewsReportData to dicts for validation
+            cached_dicts = [item.__dict__ for item in cached_report]
+            validated = TypeAdapter(List[NewsItem]).validate_python(cached_dicts)
+            return validated
+    except CacheMissError as e:
+        logger.info(f"No cached news report found: {e}")
     except Exception as e:
         logger.error(f"Error retrieving news report from cache: {e}")
 
@@ -346,20 +360,23 @@ def get_news_report():
 
     news_report = [
         {
-            "id": news.id,
+            "id": str(news.id),
             "headline": news.headline,
             "summary": news.summary,
             "url": news.url,
-            "peak_interest": trends.peak_interest,
-            "current_interest": trends.current_interest,
+            "peak_interest": trends.peak_interest if trends and trends.has_data else 0,
+            "current_interest": trends.current_interest if trends and trends.has_data else 0,
             "news_section": news.news_section,
             "thumbnail": news.thumbnail,
         }
         for news, trends in results
-        if trends.has_data
+        if trends and trends.has_data
     ]
 
-    return news_report
+    # Validate the output using Pydantic
+    validated = TypeAdapter(List[NewsItem]).validate_python(news_report)
+
+    return validated
 
 
 @app.post("/auth/google/callback")
