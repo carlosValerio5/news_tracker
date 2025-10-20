@@ -41,7 +41,7 @@ class NewsList(BaseModel):
 
 
 class NewsItem(BaseModel):
-    id: str
+    id: int
     headline: str
     summary: str
     url: str
@@ -343,6 +343,7 @@ def get_news_report():
             # Convert cached NewsReportData to dicts for validation
             cached_dicts = [item.__dict__ for item in cached_report]
             validated = TypeAdapter(List[NewsItem]).validate_python(cached_dicts)
+            logger.info(validated)
             return validated
     except CacheMissError as e:
         logger.info(f"No cached news report found: {e}")
@@ -360,7 +361,7 @@ def get_news_report():
 
     news_report = [
         {
-            "id": str(news.id),
+            "id": news.id,
             "headline": news.headline,
             "summary": news.summary,
             "url": news.url,

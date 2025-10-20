@@ -85,7 +85,7 @@ require_read = require_scopes(Scope.USER.value)
 admin_router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    # dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_admin)],
 )
 
 
