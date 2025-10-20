@@ -10,6 +10,7 @@ from jobs.worker.nlp_service import HeadlineProcessService
 from aws_handler.sqs import AwsHelper
 from database.data_base import engine
 from aws_handler.s3 import S3Handler
+from cache.redis import RedisService
 
 
 def session_factory():
@@ -25,14 +26,18 @@ def run_worker():
     FALLBACK_QUEUE_URL = os.getenv("FALLBACK_QUEUE_URL")
     BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
     CDN_DOMAIN_NAME = os.getenv("CDN_DOMAIN_NAME")
+    REDIS_HOST = os.getenv("REDIS_HOST")
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+    REDIS_PASSWORD = REDIS_PASSWORD if REDIS_PASSWORD else None
 
     google_trends = GoogleTrendsService(TRENDS_BASE_URL, API_KEY)
     nlp_processor = HeadlineProcessService()
     aws_helper = AwsHelper(queue_url=QUEUE_URL, fallback_queue_url=FALLBACK_QUEUE_URL)
     s3_handler = S3Handler(BUCKET_NAME, CDN_DOMAIN_NAME)
+    redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
 
     worker = WorkerJob(
-        google_trends, nlp_processor, aws_helper, session_factory, s3_handler
+        google_trends, nlp_processor, aws_helper, session_factory, s3_handler, redis_service
     )
 
     while True:
