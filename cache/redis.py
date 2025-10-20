@@ -89,7 +89,7 @@ class RedisService:
             items = data if isinstance(data, list) else [data]
             # Convert each dataclass to dict
             data_dicts = [asdict(item) for item in items]
-            serialized = json.dumps(data_dicts)
+            serialized = json.dumps(data_dicts, default=str)
             self.set_value(cache_key, serialized, expire_seconds=expire_seconds)
             self._logger.debug(f"Successfully cached {len(items)} item(s) for key: {cache_key}")
         except TypeError as e:
