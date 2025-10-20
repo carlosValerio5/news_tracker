@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
+from sqlalchemy import and_
 
 from aws_handler.sqs import AwsHelper
 from database.models import ArticleKeywords, TrendsResults, News
@@ -323,6 +324,7 @@ class WorkerJob:
             return
 
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today.replace(day=today.day + 1)
 
         try:
             session = self._session_factory()
@@ -335,7 +337,7 @@ class WorkerJob:
                             ArticleKeywords.trends_result
                         )
                     )
-                    .where(News.published_at >= today)
+                    .where(and_(News.published_at >= today, News.published_at < tomorrow))
                     .all()
                 )
 
@@ -346,8 +348,10 @@ class WorkerJob:
                 # Convert News records to NewsReportData instances while session is active
                 news_report_items = []
                 for news in news_records:
+                    if not news.keywords or not news.keywords.trends_result:
+                        continue
                     # Access trends through the keyword relationship (already loaded)
-                    trends = news.keywords.trends_result if news.keywords else None
+                    trends = news.keywords.trends_result
 
                     item = NewsReportData(
                         id=str(news.id),
