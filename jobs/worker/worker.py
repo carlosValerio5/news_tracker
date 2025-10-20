@@ -401,7 +401,7 @@ class WorkerJob:
                     key="daily_news_report",
                     date=datetime.strptime(date, "%Y-%m-%d"),
                     data=news_report.news_items,
-                    expire_seconds=86400,  # 24 hours
+                    expire_seconds=28800,  # 8 hours
                 )
                 logger.info(
                     f"Successfully cached news report for {date} with {len(news_report.news_items)} items."
