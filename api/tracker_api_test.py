@@ -3,6 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from helpers.database_helper import DataBaseHelper
 from api.tracker_api import app
 from unittest.mock import MagicMock
+from cache.news_dataclass import NewsReportData
 
 client = TestClient(app)
 
@@ -345,6 +346,11 @@ def test_post_headline_write_error(mocker):
 
 
 def test_get_news_report_success(mocker):
+    # Mock cache miss to force DB query
+    mock_redis_service = MagicMock()
+    mock_redis_service.get_cached_data.side_effect = Exception("Cache miss")  # Force cache miss
+    mocker.patch("api.tracker_api.RedisService", return_value=mock_redis_service)
+
     mock_news = type(
         "News",
         (),
@@ -371,11 +377,23 @@ def test_get_news_report_success(mocker):
     response = client.get("/news-report")
     assert response.status_code == 200
     data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == "1"  # Should be string
     assert data[0]["headline"] == "Title"
-    assert "peak_interest" in data[0]
+    assert data[0]["summary"] == "Some summary"
+    assert data[0]["url"] == "http://url"
+    assert data[0]["peak_interest"] == 100
+    assert data[0]["current_interest"] == 50
+    assert data[0]["news_section"] == "Tech"
+    assert data[0]["thumbnail"] == "http://thumb"
 
 
 def test_get_news_report_db_error(mocker):
+    # Mock cache miss to force DB query
+    mock_redis_service = MagicMock()
+    mock_redis_service.get_cached_data.side_effect = Exception("Cache miss")  # Force cache miss
+    mocker.patch("api.tracker_api.RedisService", return_value=mock_redis_service)
+
     mock_session = MagicMock()
     mock_session.__enter__.return_value = mock_session
     mock_session.__exit__.return_value = None
@@ -385,6 +403,74 @@ def test_get_news_report_db_error(mocker):
     response = client.get("/news-report")
     assert response.status_code == 501
     assert "Failed to retrieve report information" in response.json()["detail"]
+
+
+def test_get_news_report_cache_hit(mocker):
+    # Mock cache hit
+    cached_data = [
+        NewsReportData(
+            id="1",
+            headline="Cached Title",
+            summary="Cached summary",
+            url="http://cached-url",
+            peak_interest=200,
+            current_interest=150,
+            news_section="Tech",
+            thumbnail="http://cached-thumb",
+        )
+    ]
+
+    mock_redis_service = MagicMock()
+    mock_redis_service.get_cached_data.return_value = cached_data
+    mocker.patch("api.tracker_api.RedisService", return_value=mock_redis_service)
+
+    # Should not need to mock DB since cache hit
+    response = client.get("/news-report")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == "1"
+    assert data[0]["headline"] == "Cached Title"
+    assert data[0]["peak_interest"] == 200
+    assert data[0]["current_interest"] == 150
+
+
+def test_get_news_report_cache_error_fallback(mocker):
+    # Mock cache error but DB success
+    mock_redis_service = MagicMock()
+    mock_redis_service.get_cached_data.side_effect = Exception("Redis connection error")
+    mocker.patch("api.tracker_api.RedisService", return_value=mock_redis_service)
+
+    # Mock successful DB query
+    mock_news = type(
+        "News",
+        (),
+        {
+            "id": 2,
+            "headline": "Fallback Title",
+            "summary": "Fallback summary",
+            "url": "http://fallback-url",
+            "news_section": "Business",
+            "thumbnail": "http://fallback-thumb",
+        },
+    )()
+    mock_trends = type(
+        "TrendsResults",
+        (),
+        {"peak_interest": 75, "current_interest": 60, "has_data": True},
+    )()
+    mock_session = MagicMock()
+    mock_session.__enter__.return_value = mock_session
+    mock_session.__exit__.return_value = None
+    mock_session.execute.return_value.all.return_value = [(mock_news, mock_trends)]
+    mocker.patch("api.tracker_api.Session", return_value=mock_session)
+
+    response = client.get("/news-report")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["headline"] == "Fallback Title"
+    assert data[0]["peak_interest"] == 75
 
 
 def test_google_auth_callback_db_conflict(mocker):

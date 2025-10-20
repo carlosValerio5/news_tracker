@@ -28,6 +28,9 @@ from cache.redis import RedisService
 from exceptions.cache_exceptions import CacheMissError
 from cache.activity_dataclass import ActivitiesResponse as ActivitiesResponseDataclass
 from cache.activity_dataclass import Activity as ActivityDataClass
+from cache.activity_dataclass import ActiveUsersResponse
+from cache.activity_dataclass import ReportsGeneratedResponse
+from cache.activity_dataclass import NewSignupsResponse
 
 load_dotenv()
 security = HTTPBearer()
@@ -37,6 +40,7 @@ jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 REDIS_PASSWORD = REDIS_PASSWORD if REDIS_PASSWORD else None
+redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
 
 def session_factory():
     """Factory to create new SQLAlchemy sessions"""
@@ -200,6 +204,20 @@ async def get_active_users():
     :return: Dict with counts of active users.
     """
     try:
+        cached_data = redis_service.get_cached_data("active_users", datetime.now(), ActiveUsersResponse)
+
+        if cached_data:
+            logger.info("Cache hit for active users.")
+            cached_obj = cached_data[0]  # ActiveUsersResponse
+            # convert dataclass -> dict
+            return asdict(cached_obj)
+
+    except CacheMissError:
+        logger.info("No cached active users found.")
+    except Exception as e:
+        logger.error(f"Error retrieving active users from cache: {e}")
+
+    try:
         with session_factory() as session:
             # TODO move to helper function
             one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
@@ -234,11 +252,17 @@ async def get_active_users():
                 else None
             )
 
-            return {
-                "value_daily": daily_active_count,
-                "value_weekly": weekly_active_count,
-                "diff": diff,
-            }
+            active_users_response = ActiveUsersResponse(
+                value_daily=daily_active_count,
+                value_weekly=weekly_active_count,
+                diff=diff,
+            )
+
+            if redis_service:
+                # TTL set to 24 hours
+                redis_service.set_cached_data("active_users", datetime.now(), active_users_response, expire_seconds=86400)
+
+            return asdict(active_users_response)
     except SQLAlchemyError as e:
         logger.error(f"Failed to retrieve active user counts: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve active users.")
@@ -251,6 +275,20 @@ async def get_new_signups():
 
     :return: Dict with counts of new signups.
     """
+    try:
+        cached_data = redis_service.get_cached_data("new_signups", datetime.now(), NewSignupsResponse)
+
+        if cached_data:
+            logger.info("Cache hit for new signups.")
+            cached_obj = cached_data[0]  # NewSignupsResponse
+            # convert dataclass -> dict
+            return asdict(cached_obj)
+
+    except CacheMissError:
+        logger.info("No cached new signups found.")
+    except Exception as e:
+        logger.error(f"Error retrieving new signups from cache: {e}")
+
     try:
         with session_factory() as session:
             # TODO move to helper function
@@ -280,21 +318,25 @@ async def get_new_signups():
             prev_week = int(row.prev_week or 0)
             daily_window = int(row.today_window or 0)
 
-            return {
-                "value_daily": daily_window,
-                "value_weekly": this_week,
-                "diff": ((this_week - prev_week) / prev_week * 100)
+            new_signups_response = NewSignupsResponse(
+                value_daily=daily_window,
+                value_weekly=this_week,
+                diff=((this_week - prev_week) / prev_week * 100)
                 if prev_week > 0
                 else None,
-            }
+            )
+
+            if redis_service:
+                # TTL set to 24 hours
+                redis_service.set_cached_data("new_signups", datetime.now(), new_signups_response, expire_seconds=86400)
+
+            return asdict(new_signups_response)
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve signup information", extra={"error": str(e)})
-        return JSONResponse(
-            status_code=501, content="Failed to retrieve signup information"
-        )
+        raise HTTPException(status_code=500, detail="Failed to retrieve signup information")
     except Exception as e:
         logger.error("Failed to retrieve signup information", extra={"error": str(e)})
-        return JSONResponse(status_code=501, content="Unexpected error ocurred")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred")
 
 
 @admin_router.get("/reports-generated", status_code=200)
@@ -304,6 +346,20 @@ async def get_reports_generated():
 
     :return: Dict with counts of reports generated.
     """
+    try:
+        cached_data = redis_service.get_cached_data("reports_generated", datetime.now(), ReportsGeneratedResponse)
+
+        if cached_data:
+            logger.info("Cache hit for reports generated.")
+            cached_obj = cached_data[0]  # ReportsGeneratedResponse
+            # convert dataclass -> dict
+            return asdict(cached_obj)
+
+    except CacheMissError:
+        logger.info("No cached reports generated found.")
+    except Exception as e:
+        logger.error(f"Error retrieving reports generated from cache: {e}")
+
     try:
         with session_factory() as session:
             # TODO move to helper function
@@ -316,17 +372,21 @@ async def get_reports_generated():
 
             daily_report_count = session.execute(stmt_daily).scalar()
 
-            return {
-                "value_daily": daily_report_count,
-            }
+            reports_generated_response = ReportsGeneratedResponse(
+                value_daily=daily_report_count,
+            )
+
+            if redis_service:
+                # TTL set to 24 hours
+                redis_service.set_cached_data("reports_generated", datetime.now(), reports_generated_response, expire_seconds=86400)
+
+            return asdict(reports_generated_response)
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
-        return JSONResponse(
-            status_code=501, content="Failed to retrieve report information"
-        )
+        raise HTTPException(status_code=500, detail="Failed to retrieve report information")
     except Exception as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
-        return JSONResponse(status_code=501, content="Unexpected error occurred")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred")
 
 
 @admin_router.get(
@@ -346,10 +406,8 @@ async def get_recent_activities(
     :param activity_type: Optional filter by activity type.
     :return: ActivitiesResponse containing a list of recent activities.
     """
-    redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
-    cache_key = redis_service._get_cache_key("recent_activities", datetime.now())
     try:
-        cached_data = redis_service.get_cached_data(cache_key, datetime.now(), ActivitiesResponseDataclass)
+        cached_data = redis_service.get_cached_data("recent_activities", datetime.now(), ActivitiesResponseDataclass)
 
         if cached_data:
             logger.info("Cache hit for recent activities.")
@@ -387,7 +445,7 @@ async def get_recent_activities(
 
             if redis_service:
                 # TTL set to 1 hour
-                redis_service.set_cached_data(cache_key, datetime.now(), activities_response, expire_seconds=3600)
+                redis_service.set_cached_data("recent_activities", datetime.now(), activities_response, expire_seconds=3600)
 
             return activities_response
     except SQLAlchemyError as e:
