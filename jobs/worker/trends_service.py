@@ -83,7 +83,7 @@ class GoogleTrendsService:
                     "q": keyword,
                     "engine": "google_trends",
                 },
-                timeout=(3, 10),
+                timeout=(3, 40),
             )
             r.raise_for_status()
         except HTTPError:

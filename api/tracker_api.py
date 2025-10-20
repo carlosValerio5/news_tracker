@@ -19,6 +19,9 @@ from database import models
 from api.auth.jwt_service import JWTService
 from api.auth.auth_service import SecurityService
 from exceptions.auth_exceptions import GoogleIDMismatchException
+from cache.redis import RedisService
+from cache.news_report import NewsReport
+from exceptions.cache_exceptions import CacheMissError
 
 app = FastAPI()
 security = HTTPBearer()
@@ -50,6 +53,9 @@ load_dotenv()
 GOOGLE_CLIENT_ID = getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = getenv("GOOGLE_CLIENT_SECRET")
 JWT_TOKEN = getenv("JWT_SECRET_KEY")
+REDIS_HOST = getenv("REDIS_HOST")
+REDIS_PASSWORD = getenv("REDIS_PASSWORD")
+REDIS_PASSWORD = REDIS_PASSWORD if REDIS_PASSWORD else None
 
 jwt_service = JWTService(JWT_TOKEN, "HS256")
 
@@ -313,6 +319,21 @@ def get_news_report():
             and_(models.News.published_at >= today, models.News.published_at < tomorrow)
         )
     )
+
+    redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
+
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    key = redis_service._get_cache_key("daily_news_report", today)
+
+    try:
+        cached_report = redis_service.get_cached_data(key, today, NewsReport)
+        if cached_report:
+            logger.info("Returning news report from cache.")
+            return cached_report
+    except CacheMissError:
+        logger.info("No cached news report found, generating new report.")
+    except Exception as e:
+        logger.error(f"Error retrieving news report from cache: {e}")
 
     try:
         with Session(engine) as session:

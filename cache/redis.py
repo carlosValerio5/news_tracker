@@ -107,6 +107,7 @@ class RedisService:
         :param date: The date for which to retrieve the cached data.
         :param return_schema: A dataclass type to instantiate from cached dicts.
         :return: List of dataclass instances.
+        :raises CacheMissError: If no cached data is found for the given key and date.
         """
         cache_key = self._get_cache_key(key, date)
         try:
