@@ -56,7 +56,7 @@ function LatestNewsSection() {
       ) : error ? (
         <div className="pl-3 py-5 text-red-600">{error}</div>
       ) : (
-        <div className="pl-3 py-5 flex flex-row overflow-x-auto gap-4 lg:grid lg:grid-cols-3 lg:grid-rows-1 lg:gap-2 lg:overflow-x-visible">
+        <div className="pl-3 py-5 flex flex-row overflow-x-auto gap-4 lg:grid lg:grid-cols-3 lg:grid-rows-1 lg:gap-2 lg:overflow-x-visible lg:justify-center lg:justify-items-center">
           {items.map((item: NewsEntry) => (
             <Card key={item.url} newsEntry={item} />
           ))}

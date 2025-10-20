@@ -1,5 +1,6 @@
 [
   {
+    "id": 1,
     "headline": "Potter's job at West Ham under serious threat",
     "summary": "West Ham head coach Graham Potter's position is under significant internal scrutinity with the club now considering managerial alternatives.",
     "url": "https://www.bbc.com/sport/football/articles/cqlzzv1qdLwo?at_medium=RSS&at_campaign=rss",
@@ -8,6 +9,7 @@
     "news_section": "sport"
   },
   {
+    "id": 2,
     "headline": "Potter under pressure as West Ham beaten at home by Crystal Palace",
     "summary": "Pressure continues to mount on West Ham manager Graham Potter as he sees his side fall to fourth Premier League defeat of the season, losing 2-1 at home to Crystal Palace.",
     "url": "https://www.bbc.com/sport/football/videos/c4qqqxeln49o?at_medium=RSS&at_campaign=rss",
@@ -16,6 +18,7 @@
     "news_section": "sport"
   },
   {
+    "id": 3,
     "headline": "'Vultures are circling' for Potter at West Ham - Given",
     "summary": "Final Score's Dion Dublin and Shay Given discuss the \"severe pressure\" facing West Ham United manager Graham Potter after their 2-1 defeat to Crystal Palace on Saturday.",
     "url": "https://www.bbc.com/sport/football/videos/c15kk9nv1pko?at_medium=RSS&at_campaign=rss",

@@ -12,6 +12,7 @@ const activitiesEndpoint = "/admin/recent-activities";
 
 const sampleArticles: Article[] = [
   {
+    id: 1,
     headline: "Headline 1",
     summary: "Summary of the first news article.",
     url: "https://example.com/news1",
@@ -20,6 +21,7 @@ const sampleArticles: Article[] = [
     news_section: "World",
   },
   {
+    id: 2,
     headline: "Headline 2",
     summary: "Summary of the second news article.",
     url: "https://example.com/news2",

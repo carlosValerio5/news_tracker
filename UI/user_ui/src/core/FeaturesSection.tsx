@@ -1,5 +1,6 @@
 import RegisterButton from "../components/RegisterButton";
 import ReportButton from "../components/ReportButton";
+import { CDN_DOMAIN_NAME } from "../env";
 
 function FeaturesSection() {
   return (
@@ -32,7 +33,7 @@ function FeaturesSection() {
         <div className="max-h-[200px] overflow-clip hidden md:block md:max-h-[400px]">
           <img
             className="rounded-sm"
-            src="/src/assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg"
+            src={`https://${CDN_DOMAIN_NAME}/landing/features-illustration.jpg`}
           ></img>
         </div>
       </div>
