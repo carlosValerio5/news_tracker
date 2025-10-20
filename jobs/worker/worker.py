@@ -54,7 +54,6 @@ class WorkerJob:
     def process_messages(self) -> None:
         """Extracts keywords and saves to ArticleKeywords table"""
 
-        """
         try:
             messages = self._aws_handler.poll_messages()
         except Exception as e:
@@ -122,7 +121,6 @@ class WorkerJob:
                 raise
 
         # Cache the aggregated news report after trends estimation
-        """
         self._cache_news_report()
 
     def estimate_popularity(self, result: list[dict]) -> list[dict]:
