@@ -1,7 +1,9 @@
 import logging
 import json
 from collections.abc import Callable
+from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
 
 from aws_handler.sqs import AwsHelper
 from database.models import ArticleKeywords, TrendsResults, News
@@ -11,6 +13,9 @@ from jobs.worker.nlp_service import HeadlineProcessService
 from aws_handler.s3 import S3Handler
 from exceptions.s3_exceptions import S3BucketServiceError
 from exceptions.image_exceptions import ImageDownloadError
+from cache.redis import RedisService
+from cache.news_dataclass import NewsReportData
+from cache.news_report import NewsReport
 
 """Worker module, bussiness logic for headline processing"""
 
@@ -27,6 +32,7 @@ class WorkerJob:
         aws_handler: AwsHelper,
         session_factory: Callable,
         s3_handler: S3Handler = None,
+        redis_service: RedisService = None,
     ):
         """
         Initialize the Worker Instance
@@ -36,16 +42,19 @@ class WorkerJob:
         :param aws_handler: Instance of aws handler class.
         :param session_factory: Function to create a db session.
         :param s3_handler: Instance of S3Handler to upload thumbnails.
+        :param redis_service: Instance of RedisService for caching (optional).
         """
         self._api = api
         self._processor_service = processor_service
         self._aws_handler = aws_handler
         self._session_factory = session_factory
         self._s3_handler = s3_handler
+        self._redis_service = redis_service
 
     def process_messages(self) -> None:
         """Extracts keywords and saves to ArticleKeywords table"""
 
+        """
         try:
             messages = self._aws_handler.poll_messages()
         except Exception as e:
@@ -111,6 +120,10 @@ class WorkerJob:
             except Exception:
                 logger.exception("Failed to write trends results.")
                 raise
+
+        # Cache the aggregated news report after trends estimation
+        """
+        self._cache_news_report()
 
     def estimate_popularity(self, result: list[dict]) -> list[dict]:
         """
@@ -300,3 +313,108 @@ class WorkerJob:
                 seen.add((keyword_id, news_id))
 
         return seen
+
+    def _cache_news_report(self) -> None:
+        """
+        Fetches all news with trends data and caches the aggregated report.
+        Uses retry logic with graceful fallback: logs and continues if caching fails.
+        Only caches if Redis service is available.
+        """
+        if not self._redis_service:
+            logger.debug("Redis service not available, skipping cache.")
+            return
+
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        try:
+            session = self._session_factory()
+            try:
+                # Eagerly load keywords and trends to avoid lazy-load issues after session closes
+                news_records = (
+                    session.query(News)
+                    .options(joinedload(News.keywords).joinedload(ArticleKeywords.trends_result))
+                    .where(News.published_at >= today)
+                    .all()
+                )
+
+                if not news_records:
+                    logger.warning("No news records to cache.")
+                    return
+
+                # Convert News records to NewsReportData instances while session is active
+                news_report_items = []
+                for news in news_records:
+                    # Access trends through the keyword relationship (already loaded)
+                    trends = news.keywords.trends_result if news.keywords else None
+
+                    item = NewsReportData(
+                        id=str(news.id),
+                        headline=news.headline,
+                        summary=news.summary,
+                        url=news.url,
+                        peak_interest=trends.peak_interest if trends and hasattr(trends, "peak_interest") else 0,
+                        current_interest=trends.current_interest if trends and hasattr(trends, "current_interest") else 0,
+                        news_section=news.news_section,
+                        thumbnail=news.thumbnail,
+                    )
+                    news_report_items.append(item)
+
+                # Create NewsReport and cache it
+                today = datetime.now().strftime("%Y-%m-%d")
+                news_report = NewsReport(
+                    date=today,
+                    news_items=news_report_items,
+                    created_at=datetime.now().isoformat(),
+                )
+
+                # Attempt to cache with retry on first failure
+                self._cache_with_retry(news_report, today)
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(
+                f"Failed to prepare news report for caching: {e}",
+                exc_info=True,
+            )
+
+    def _cache_with_retry(self, news_report: NewsReport, date: str) -> None:
+        """
+        Attempts to cache the news report with one retry.
+        Logs and continues if both attempts fail.
+
+        :param news_report: The NewsReport instance to cache.
+        :param date: The date string (YYYY-MM-DD) for the cache key.
+        """
+        # Check if data is already cached for today
+        cache_key = self._redis_service._get_cache_key("daily_news_report", 
+                                                        datetime.strptime(date, "%Y-%m-%d"))
+        if self._redis_service.get_value(cache_key):
+            logger.info(f"News report already cached for {date}, skipping cache write.")
+            return
+        max_retries = 2
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Cache the list of NewsReportData items (news_report.news_items)
+                self._redis_service.set_cached_data(
+                    key="daily_news_report",
+                    date=datetime.strptime(date, "%Y-%m-%d"),
+                    data=news_report.news_items,
+                    expire_seconds=86400,  # 24 hours
+                )
+                logger.info(
+                    f"Successfully cached news report for {date} with {len(news_report.news_items)} items."
+                )
+                return
+            except Exception as e:
+                if attempt < max_retries:
+                    logger.warning(
+                        f"Cache attempt {attempt} failed, retrying: {e}"
+                    )
+                else:
+                    logger.error(
+                        f"Failed to cache news report after {max_retries} attempts: {e}. "
+                        "Continuing without cache.",
+                        exc_info=True,
+                    )
