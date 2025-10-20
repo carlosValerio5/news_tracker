@@ -378,7 +378,7 @@ def test_get_news_report_success(mocker):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
-    assert data[0]["id"] == "1"  # Should be string
+    assert data[0]["id"] == 1  # Should be integer
     assert data[0]["headline"] == "Title"
     assert data[0]["summary"] == "Some summary"
     assert data[0]["url"] == "http://url"
@@ -429,7 +429,7 @@ def test_get_news_report_cache_hit(mocker):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
-    assert data[0]["id"] == "1"
+    assert data[0]["id"] == 1
     assert data[0]["headline"] == "Cached Title"
     assert data[0]["peak_interest"] == 200
     assert data[0]["current_interest"] == 150
