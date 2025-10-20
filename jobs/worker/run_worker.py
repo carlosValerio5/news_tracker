@@ -34,10 +34,17 @@ def run_worker():
     nlp_processor = HeadlineProcessService()
     aws_helper = AwsHelper(queue_url=QUEUE_URL, fallback_queue_url=FALLBACK_QUEUE_URL)
     s3_handler = S3Handler(BUCKET_NAME, CDN_DOMAIN_NAME)
-    redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
+    redis_service = RedisService(
+        host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger
+    )
 
     worker = WorkerJob(
-        google_trends, nlp_processor, aws_helper, session_factory, s3_handler, redis_service
+        google_trends,
+        nlp_processor,
+        aws_helper,
+        session_factory,
+        s3_handler,
+        redis_service,
     )
 
     while True:

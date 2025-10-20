@@ -332,12 +332,16 @@ def get_news_report():
         )
     )
 
-    redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
+    redis_service = RedisService(
+        host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger
+    )
 
     today = datetime.now()
 
     try:
-        cached_report = redis_service.get_cached_data("daily_news_report", today, NewsReportData)
+        cached_report = redis_service.get_cached_data(
+            "daily_news_report", today, NewsReportData
+        )
         if cached_report:
             logger.info("Returning news report from cache.")
             # Convert cached NewsReportData to dicts for validation
@@ -366,7 +370,9 @@ def get_news_report():
             "summary": news.summary,
             "url": news.url,
             "peak_interest": trends.peak_interest if trends and trends.has_data else 0,
-            "current_interest": trends.current_interest if trends and trends.has_data else 0,
+            "current_interest": trends.current_interest
+            if trends and trends.has_data
+            else 0,
             "news_section": news.news_section,
             "thumbnail": news.thumbnail,
         }

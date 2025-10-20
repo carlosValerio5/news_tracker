@@ -348,7 +348,9 @@ def test_post_headline_write_error(mocker):
 def test_get_news_report_success(mocker):
     # Mock cache miss to force DB query
     mock_redis_service = MagicMock()
-    mock_redis_service.get_cached_data.side_effect = Exception("Cache miss")  # Force cache miss
+    mock_redis_service.get_cached_data.side_effect = Exception(
+        "Cache miss"
+    )  # Force cache miss
     mocker.patch("api.tracker_api.RedisService", return_value=mock_redis_service)
 
     mock_news = type(
@@ -391,7 +393,9 @@ def test_get_news_report_success(mocker):
 def test_get_news_report_db_error(mocker):
     # Mock cache miss to force DB query
     mock_redis_service = MagicMock()
-    mock_redis_service.get_cached_data.side_effect = Exception("Cache miss")  # Force cache miss
+    mock_redis_service.get_cached_data.side_effect = Exception(
+        "Cache miss"
+    )  # Force cache miss
     mocker.patch("api.tracker_api.RedisService", return_value=mock_redis_service)
 
     mock_session = MagicMock()

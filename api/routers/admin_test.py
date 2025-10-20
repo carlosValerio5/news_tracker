@@ -240,6 +240,7 @@ def test_post_admin_config_unexpected_error(mocker):
 # get_new_signups tests
 # --------------------------
 
+
 def test_get_new_signups_cache_hit(mocker):
     client.app.dependency_overrides[admin_module.get_current_user] = lambda: {
         "scopes": ["a"]
@@ -250,9 +251,7 @@ def test_get_new_signups_cache_hit(mocker):
         value_daily=5, value_weekly=25, diff=10.0
     )
     mocker.patch.object(
-        admin_module.redis_service,
-        "get_cached_data",
-        return_value=[mock_response]
+        admin_module.redis_service, "get_cached_data", return_value=[mock_response]
     )
 
     response = client.get("/admin/new-signups")
@@ -272,7 +271,7 @@ def test_get_new_signups_cache_miss_db_success(mocker):
     mocker.patch.object(
         admin_module.redis_service,
         "get_cached_data",
-        side_effect=admin_module.CacheMissError("No cache")
+        side_effect=admin_module.CacheMissError("No cache"),
     )
 
     # Mock DB session
@@ -309,11 +308,13 @@ def test_get_new_signups_db_error(mocker):
     mocker.patch.object(
         admin_module.redis_service,
         "get_cached_data",
-        side_effect=admin_module.CacheMissError("No cache")
+        side_effect=admin_module.CacheMissError("No cache"),
     )
 
     # Mock DB error
-    mocker.patch("api.routers.admin.session_factory", side_effect=SQLAlchemyError("DB error"))
+    mocker.patch(
+        "api.routers.admin.session_factory", side_effect=SQLAlchemyError("DB error")
+    )
 
     response = client.get("/admin/new-signups")
     assert response.status_code == 500
@@ -329,11 +330,13 @@ def test_get_new_signups_unexpected_error(mocker):
     mocker.patch.object(
         admin_module.redis_service,
         "get_cached_data",
-        side_effect=admin_module.CacheMissError("No cache")
+        side_effect=admin_module.CacheMissError("No cache"),
     )
 
     # Mock unexpected error
-    mocker.patch("api.routers.admin.session_factory", side_effect=Exception("Unexpected"))
+    mocker.patch(
+        "api.routers.admin.session_factory", side_effect=Exception("Unexpected")
+    )
 
     response = client.get("/admin/new-signups")
     assert response.status_code == 500

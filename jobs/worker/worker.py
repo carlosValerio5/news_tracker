@@ -330,7 +330,11 @@ class WorkerJob:
                 # Eagerly load keywords and trends to avoid lazy-load issues after session closes
                 news_records = (
                     session.query(News)
-                    .options(joinedload(News.keywords).joinedload(ArticleKeywords.trends_result))
+                    .options(
+                        joinedload(News.keywords).joinedload(
+                            ArticleKeywords.trends_result
+                        )
+                    )
                     .where(News.published_at >= today)
                     .all()
                 )
@@ -350,8 +354,12 @@ class WorkerJob:
                         headline=news.headline,
                         summary=news.summary,
                         url=news.url,
-                        peak_interest=trends.peak_interest if trends and hasattr(trends, "peak_interest") else 0,
-                        current_interest=trends.current_interest if trends and hasattr(trends, "current_interest") else 0,
+                        peak_interest=trends.peak_interest
+                        if trends and hasattr(trends, "peak_interest")
+                        else 0,
+                        current_interest=trends.current_interest
+                        if trends and hasattr(trends, "current_interest")
+                        else 0,
                         news_section=news.news_section,
                         thumbnail=news.thumbnail,
                     )
@@ -386,8 +394,9 @@ class WorkerJob:
         :param date: The date string (YYYY-MM-DD) for the cache key.
         """
         # Check if data is already cached for today
-        cache_key = self._redis_service._get_cache_key("daily_news_report", 
-                                                        datetime.strptime(date, "%Y-%m-%d"))
+        cache_key = self._redis_service._get_cache_key(
+            "daily_news_report", datetime.strptime(date, "%Y-%m-%d")
+        )
         if self._redis_service.get_value(cache_key):
             logger.info(f"News report already cached for {date}, skipping cache write.")
             return
@@ -407,9 +416,7 @@ class WorkerJob:
                 return
             except Exception as e:
                 if attempt < max_retries:
-                    logger.warning(
-                        f"Cache attempt {attempt} failed, retrying: {e}"
-                    )
+                    logger.warning(f"Cache attempt {attempt} failed, retrying: {e}")
                 else:
                     logger.error(
                         f"Failed to cache news report after {max_retries} attempts: {e}. "

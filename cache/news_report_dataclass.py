@@ -3,6 +3,7 @@ from typing import List
 
 from cache.news_dataclass import NewsReportData
 
+
 @dataclass
 class NewsReport:
     date: str

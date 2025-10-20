@@ -23,7 +23,7 @@ from logger.logging_config import logger
 from api.auth.scopes import Scope
 from api.auth.jwt_service import JWTService
 from api.pydantic_models.admin_config import AdminConfig
-from api.pydantic_models.activities import Activity, ActivitiesResponse
+from api.pydantic_models.activities import ActivitiesResponse
 from cache.redis import RedisService
 from exceptions.cache_exceptions import CacheMissError
 from cache.activity_dataclass import ActivitiesResponse as ActivitiesResponseDataclass
@@ -41,6 +41,7 @@ REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 REDIS_PASSWORD = REDIS_PASSWORD if REDIS_PASSWORD else None
 redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
+
 
 def session_factory():
     """Factory to create new SQLAlchemy sessions"""
@@ -204,7 +205,9 @@ async def get_active_users():
     :return: Dict with counts of active users.
     """
     try:
-        cached_data = redis_service.get_cached_data("active_users", datetime.now(), ActiveUsersResponse)
+        cached_data = redis_service.get_cached_data(
+            "active_users", datetime.now(), ActiveUsersResponse
+        )
 
         if cached_data:
             logger.info("Cache hit for active users.")
@@ -260,7 +263,12 @@ async def get_active_users():
 
             if redis_service:
                 # TTL set to 24 hours
-                redis_service.set_cached_data("active_users", datetime.now(), active_users_response, expire_seconds=86400)
+                redis_service.set_cached_data(
+                    "active_users",
+                    datetime.now(),
+                    active_users_response,
+                    expire_seconds=86400,
+                )
 
             return asdict(active_users_response)
     except SQLAlchemyError as e:
@@ -276,7 +284,9 @@ async def get_new_signups():
     :return: Dict with counts of new signups.
     """
     try:
-        cached_data = redis_service.get_cached_data("new_signups", datetime.now(), NewSignupsResponse)
+        cached_data = redis_service.get_cached_data(
+            "new_signups", datetime.now(), NewSignupsResponse
+        )
 
         if cached_data:
             logger.info("Cache hit for new signups.")
@@ -328,12 +338,19 @@ async def get_new_signups():
 
             if redis_service:
                 # TTL set to 24 hours
-                redis_service.set_cached_data("new_signups", datetime.now(), new_signups_response, expire_seconds=86400)
+                redis_service.set_cached_data(
+                    "new_signups",
+                    datetime.now(),
+                    new_signups_response,
+                    expire_seconds=86400,
+                )
 
             return asdict(new_signups_response)
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve signup information", extra={"error": str(e)})
-        raise HTTPException(status_code=500, detail="Failed to retrieve signup information")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve signup information"
+        )
     except Exception as e:
         logger.error("Failed to retrieve signup information", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail="Unexpected error occurred")
@@ -347,7 +364,9 @@ async def get_reports_generated():
     :return: Dict with counts of reports generated.
     """
     try:
-        cached_data = redis_service.get_cached_data("reports_generated", datetime.now(), ReportsGeneratedResponse)
+        cached_data = redis_service.get_cached_data(
+            "reports_generated", datetime.now(), ReportsGeneratedResponse
+        )
 
         if cached_data:
             logger.info("Cache hit for reports generated.")
@@ -378,12 +397,19 @@ async def get_reports_generated():
 
             if redis_service:
                 # TTL set to 24 hours
-                redis_service.set_cached_data("reports_generated", datetime.now(), reports_generated_response, expire_seconds=86400)
+                redis_service.set_cached_data(
+                    "reports_generated",
+                    datetime.now(),
+                    reports_generated_response,
+                    expire_seconds=86400,
+                )
 
             return asdict(reports_generated_response)
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
-        raise HTTPException(status_code=500, detail="Failed to retrieve report information")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve report information"
+        )
     except Exception as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail="Unexpected error occurred")
@@ -407,7 +433,9 @@ async def get_recent_activities(
     :return: ActivitiesResponse containing a list of recent activities.
     """
     try:
-        cached_data = redis_service.get_cached_data("recent_activities", datetime.now(), ActivitiesResponseDataclass)
+        cached_data = redis_service.get_cached_data(
+            "recent_activities", datetime.now(), ActivitiesResponseDataclass
+        )
 
         if cached_data:
             logger.info("Cache hit for recent activities.")
@@ -437,7 +465,10 @@ async def get_recent_activities(
             )
             results = session.execute(stmt).scalars().all()
 
-            activities = [type_adapter_Activity.validate_python(activity.__dict__) for activity in results]
+            activities = [
+                type_adapter_Activity.validate_python(activity.__dict__)
+                for activity in results
+            ]
 
             activities_response = ActivitiesResponseDataclass(
                 activities=activities, total=total, limit=limit, offset=offset
@@ -445,7 +476,12 @@ async def get_recent_activities(
 
             if redis_service:
                 # TTL set to 1 hour
-                redis_service.set_cached_data("recent_activities", datetime.now(), activities_response, expire_seconds=3600)
+                redis_service.set_cached_data(
+                    "recent_activities",
+                    datetime.now(),
+                    activities_response,
+                    expire_seconds=3600,
+                )
 
             return activities_response
     except SQLAlchemyError as e:
