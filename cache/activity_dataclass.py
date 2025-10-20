@@ -18,3 +18,22 @@ class ActivitiesResponse:
     total: int
     limit: int
     offset: int
+
+
+@dataclass
+class ActiveUsersResponse:
+    value_daily: int
+    value_weekly: int
+    diff: Optional[float]
+
+
+@dataclass
+class ReportsGeneratedResponse:
+    value_daily: int
+
+
+@dataclass
+class NewSignupsResponse:
+    value_daily: int
+    value_weekly: int
+    diff: Optional[float]
