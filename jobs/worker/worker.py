@@ -15,7 +15,7 @@ from exceptions.s3_exceptions import S3BucketServiceError
 from exceptions.image_exceptions import ImageDownloadError
 from cache.redis import RedisService
 from cache.news_dataclass import NewsReportData
-from cache.news_report import NewsReport
+from cache.news_report_dataclass import NewsReport
 
 """Worker module, bussiness logic for headline processing"""
 
