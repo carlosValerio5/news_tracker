@@ -3,7 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from helpers.database_helper import DataBaseHelper
 from api.tracker_api import app
 from unittest.mock import MagicMock
-from cache.news_dataclass import NewsReportData
+from cache.schemas import NewsReportData
 
 client = TestClient(app)
 

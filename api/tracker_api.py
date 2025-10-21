@@ -13,7 +13,7 @@ from typing import Union, List
 from dotenv import load_dotenv
 
 from api.routers.admin import admin_router
-from cache.news_dataclass import NewsReportData
+from cache.schemas import NewsReportData
 from database.data_base import engine
 from helpers.database_helper import DataBaseHelper
 from logger.logging_config import logger
@@ -350,9 +350,9 @@ def get_news_report():
             logger.info(validated)
             return validated
     except CacheMissError as e:
-        logger.info(f"No cached news report found: {e}")
+        logger.info("No cached news report found.", extra={"error": str(e)})
     except Exception as e:
-        logger.error(f"Error retrieving news report from cache: {e}")
+        logger.error(f"Error retrieving news report from cache: {str(e)}")
 
     try:
         with Session(engine) as session:

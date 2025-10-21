@@ -12,7 +12,7 @@ from helpers.database_helper import DataBaseHelper
 app = FastAPI()
 app.include_router(admin_router)
 client = TestClient(app)
-
+NEW_SIGNUPS = "/admin/new-signups"
 
 # Utility: create a mocked Session context manager
 def make_mock_session(
@@ -254,7 +254,7 @@ def test_get_new_signups_cache_hit(mocker):
         admin_module.redis_service, "get_cached_data", return_value=[mock_response]
     )
 
-    response = client.get("/admin/new-signups")
+    response = client.get(NEW_SIGNUPS)
     assert response.status_code == 200
     data = response.json()
     assert data["value_daily"] == 5
@@ -290,7 +290,7 @@ def test_get_new_signups_cache_miss_db_success(mocker):
     # Mock Redis set
     mocker.patch.object(admin_module.redis_service, "set_cached_data")
 
-    response = client.get("/admin/new-signups")
+    response = client.get(NEW_SIGNUPS)
     assert response.status_code == 200
     data = response.json()
     assert data["value_daily"] == 3
@@ -316,7 +316,7 @@ def test_get_new_signups_db_error(mocker):
         "api.routers.admin.session_factory", side_effect=SQLAlchemyError("DB error")
     )
 
-    response = client.get("/admin/new-signups")
+    response = client.get(NEW_SIGNUPS)
     assert response.status_code == 500
     assert "Failed to retrieve signup information" in response.json()["detail"]
 
@@ -338,6 +338,6 @@ def test_get_new_signups_unexpected_error(mocker):
         "api.routers.admin.session_factory", side_effect=Exception("Unexpected")
     )
 
-    response = client.get("/admin/new-signups")
+    response = client.get(NEW_SIGNUPS)
     assert response.status_code == 500
     assert "Unexpected error occurred" in response.json()["detail"]

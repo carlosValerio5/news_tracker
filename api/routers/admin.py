@@ -26,11 +26,11 @@ from api.pydantic_models.admin_config import AdminConfig
 from api.pydantic_models.activities import ActivitiesResponse
 from cache.redis import RedisService
 from exceptions.cache_exceptions import CacheMissError
-from cache.activity_dataclass import ActivitiesResponse as ActivitiesResponseDataclass
-from cache.activity_dataclass import Activity as ActivityDataClass
-from cache.activity_dataclass import ActiveUsersResponse
-from cache.activity_dataclass import ReportsGeneratedResponse
-from cache.activity_dataclass import NewSignupsResponse
+from cache.schemas import ActivitiesResponse as ActivitiesResponseDataclass
+from cache.schemas import Activity as ActivityDataClass
+from cache.schemas import ActiveUsersResponse
+from cache.schemas import ReportsGeneratedResponse
+from cache.schemas import NewSignupsResponse
 
 load_dotenv()
 security = HTTPBearer()
@@ -210,7 +210,6 @@ async def get_active_users():
         )
 
         if cached_data:
-            logger.info("Cache hit for active users.")
             cached_obj = cached_data[0]  # ActiveUsersResponse
             # convert dataclass -> dict
             return asdict(cached_obj)
@@ -369,7 +368,6 @@ async def get_reports_generated():
         )
 
         if cached_data:
-            logger.info("Cache hit for reports generated.")
             cached_obj = cached_data[0]  # ReportsGeneratedResponse
             # convert dataclass -> dict
             return asdict(cached_obj)
@@ -408,7 +406,7 @@ async def get_reports_generated():
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
         raise HTTPException(
-            status_code=500, detail="Failed to retrieve report information"
+            status_code=500, detail="Database error occurred while retrieving report information."
         )
     except Exception as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
@@ -438,7 +436,6 @@ async def get_recent_activities(
         )
 
         if cached_data:
-            logger.info("Cache hit for recent activities.")
             cached_obj = cached_data[0]  # ActivitiesResponseDataclass
             # convert dataclass -> dict, then validate into the Pydantic response model
             return ActivitiesResponse.model_validate(asdict(cached_obj))
