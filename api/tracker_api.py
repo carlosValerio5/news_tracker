@@ -20,9 +20,9 @@ from logger.logging_config import logger
 from database import models
 from api.auth.jwt_service import JWTService
 from api.auth.auth_service import SecurityService
-from exceptions.auth_exceptions import GoogleIDMismatchException
+from exceptions.auth import GoogleIDMismatchException
 from cache.redis import RedisService
-from exceptions.cache_exceptions import CacheMissError
+from exceptions.cache import CacheMissError
 
 app = FastAPI()
 security = HTTPBearer()

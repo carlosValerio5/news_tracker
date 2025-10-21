@@ -4,8 +4,8 @@ import boto3
 from datetime import datetime
 from botocore.exceptions import BotoCoreError, ClientError
 
-from exceptions.s3_exceptions import S3BucketServiceError
-from exceptions.image_exceptions import ImageDownloadError
+from exceptions.s3 import S3BucketServiceError
+from exceptions.image import ImageDownloadError
 from helpers.image_helper import ImageHelper
 
 

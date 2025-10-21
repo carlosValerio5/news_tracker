@@ -4,7 +4,7 @@ import requests
 from urllib.parse import urlparse
 from requests import Response, RequestException
 
-from exceptions.image_exceptions import ImageDownloadError
+from exceptions.image import ImageDownloadError
 
 
 class ImageHelper:

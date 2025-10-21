@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime
 from dataclasses import dataclass
 from cache.redis import RedisService
-from exceptions.cache_exceptions import CacheMissError
+from exceptions.cache import CacheMissError
 
 
 @dataclass

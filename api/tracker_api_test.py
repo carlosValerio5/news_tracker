@@ -478,7 +478,7 @@ def test_get_news_report_cache_error_fallback(mocker):
 
 
 def test_google_auth_callback_db_conflict(mocker):
-    from exceptions.auth_exceptions import GoogleIDMismatchException
+    from exceptions.auth import GoogleIDMismatchException
 
     mocker.patch(
         "api.tracker_api.SecurityService.exchange_code_for_tokens",

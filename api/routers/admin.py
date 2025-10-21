@@ -18,14 +18,14 @@ from database import models
 from database.data_base import engine
 from sqlalchemy.orm import Session
 from helpers.database_helper import DataBaseHelper
-from exceptions.auth_exceptions import UserNotFoundException
+from exceptions.auth import UserNotFoundException
 from logger.logging_config import logger
 from api.auth.scopes import Scope
 from api.auth.jwt_service import JWTService
 from api.pydantic_models.admin_config import AdminConfig
 from api.pydantic_models.activities import ActivitiesResponse
 from cache.redis import RedisService
-from exceptions.cache_exceptions import CacheMissError
+from exceptions.cache import CacheMissError
 from cache.schemas import ActivitiesResponse as ActivitiesResponseDataclass
 from cache.schemas import Activity as ActivityDataClass
 from cache.schemas import ActiveUsersResponse

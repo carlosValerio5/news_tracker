@@ -7,7 +7,7 @@ from datetime import datetime
 from logging import getLogger
 from typing import TypeVar, Type, Union
 
-from exceptions.cache_exceptions import CacheMissError
+from exceptions.cache import CacheMissError
 
 T = TypeVar("T")
 

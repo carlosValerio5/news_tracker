@@ -12,8 +12,8 @@ from helpers.database_helper import DataBaseHelper
 from jobs.worker.trends_service import GoogleTrendsService
 from jobs.worker.nlp_service import HeadlineProcessService
 from aws_handler.s3 import S3Handler
-from exceptions.s3_exceptions import S3BucketServiceError
-from exceptions.image_exceptions import ImageDownloadError
+from exceptions.s3 import S3BucketServiceError
+from exceptions.image import ImageDownloadError
 from cache.redis import RedisService
 from cache.schemas import NewsReportData
 from cache.schemas import NewsReport

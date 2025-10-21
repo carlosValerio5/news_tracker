@@ -6,7 +6,7 @@ from logging import Logger
 from typing import Callable
 
 from database.models import Users
-from exceptions.auth_exceptions import GoogleIDMismatchException, UserNotFoundException
+from exceptions.auth import GoogleIDMismatchException, UserNotFoundException
 
 """
 Module with class methods for data base operations
