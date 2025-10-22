@@ -1,14 +1,15 @@
+import imgUrl from "/src/assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg";
 import TransparentCard from "../components/TransparentCard";
 
 const sampleCards = [
   {
-    imageUrl: "/src/assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg",
+    imageUrl: imgUrl,
     subHeading: "Top Headlines Every Day",
     description:
       "We fetch the world's most relevant news and filter for relevance.",
   },
   {
-    imageUrl: "/src/assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg",
+    imageUrl: imgUrl,
     subHeading: "Popularity Insights",
     description:
       "We analyze trending topics so you'll biw what's popular nowadays.",
