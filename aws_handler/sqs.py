@@ -1,7 +1,7 @@
 import boto3
 import json
 from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
-from exceptions.sqs_exceptions import NoSQSFoundException, SQSMessageBatchNotSent
+from exceptions.sqs import NoSQSFoundException, SQSMessageBatchNotSent
 
 from logger.logging_config import logger
 

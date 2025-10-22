@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from aws_handler.sqs import AwsHelper
-from exceptions.sqs_exceptions import SQSMessageBatchNotSent
+from exceptions.sqs import SQSMessageBatchNotSent
 
 
 @pytest.fixture

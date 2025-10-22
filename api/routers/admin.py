@@ -11,23 +11,36 @@ from typing import Optional
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select, func, case
 from datetime import timedelta, timezone
+from pydantic.type_adapter import TypeAdapter
+from dataclasses import asdict
 
 from database import models
 from database.data_base import engine
 from sqlalchemy.orm import Session
 from helpers.database_helper import DataBaseHelper
-from exceptions.auth_exceptions import UserNotFoundException
+from exceptions.auth import UserNotFoundException
 from logger.logging_config import logger
 from api.auth.scopes import Scope
 from api.auth.jwt_service import JWTService
 from api.pydantic_models.admin_config import AdminConfig
-from api.pydantic_models.activities import Activity, ActivitiesResponse
+from api.pydantic_models.activities import ActivitiesResponse
+from cache.redis import RedisService
+from exceptions.cache import CacheMissError
+from cache.schemas import ActivitiesResponse as ActivitiesResponseDataclass
+from cache.schemas import Activity as ActivityDataClass
+from cache.schemas import ActiveUsersResponse
+from cache.schemas import ReportsGeneratedResponse
+from cache.schemas import NewSignupsResponse
 
 load_dotenv()
 security = HTTPBearer()
 
 jwt_secret = os.getenv("JWT_SECRET_KEY")
 jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_PASSWORD = REDIS_PASSWORD if REDIS_PASSWORD else None
+redis_service = RedisService(host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger)
 
 
 def session_factory():
@@ -36,6 +49,7 @@ def session_factory():
 
 
 jwt_service = JWTService(secret_key=jwt_secret, algorithm=jwt_algorithm)
+type_adapter_Activity = TypeAdapter(ActivityDataClass)
 
 
 def get_current_user(
@@ -72,7 +86,7 @@ require_read = require_scopes(Scope.USER.value)
 admin_router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    # dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_admin)],
 )
 
 
@@ -191,6 +205,21 @@ async def get_active_users():
     :return: Dict with counts of active users.
     """
     try:
+        cached_data = redis_service.get_cached_data(
+            "active_users", datetime.now(), ActiveUsersResponse
+        )
+
+        if cached_data:
+            cached_obj = cached_data[0]  # ActiveUsersResponse
+            # convert dataclass -> dict
+            return asdict(cached_obj)
+
+    except CacheMissError:
+        logger.info("No cached active users found.")
+    except Exception as e:
+        logger.error(f"Error retrieving active users from cache: {e}")
+
+    try:
         with session_factory() as session:
             # TODO move to helper function
             one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
@@ -225,11 +254,22 @@ async def get_active_users():
                 else None
             )
 
-            return {
-                "value_daily": daily_active_count,
-                "value_weekly": weekly_active_count,
-                "diff": diff,
-            }
+            active_users_response = ActiveUsersResponse(
+                value_daily=daily_active_count,
+                value_weekly=weekly_active_count,
+                diff=diff,
+            )
+
+            if redis_service:
+                # TTL set to 24 hours
+                redis_service.set_cached_data(
+                    "active_users",
+                    datetime.now(),
+                    active_users_response,
+                    expire_seconds=86400,
+                )
+
+            return asdict(active_users_response)
     except SQLAlchemyError as e:
         logger.error(f"Failed to retrieve active user counts: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve active users.")
@@ -242,6 +282,22 @@ async def get_new_signups():
 
     :return: Dict with counts of new signups.
     """
+    try:
+        cached_data = redis_service.get_cached_data(
+            "new_signups", datetime.now(), NewSignupsResponse
+        )
+
+        if cached_data:
+            logger.info("Cache hit for new signups.")
+            cached_obj = cached_data[0]  # NewSignupsResponse
+            # convert dataclass -> dict
+            return asdict(cached_obj)
+
+    except CacheMissError:
+        logger.info("No cached new signups found.")
+    except Exception as e:
+        logger.error(f"Error retrieving new signups from cache: {e}")
+
     try:
         with session_factory() as session:
             # TODO move to helper function
@@ -271,21 +327,32 @@ async def get_new_signups():
             prev_week = int(row.prev_week or 0)
             daily_window = int(row.today_window or 0)
 
-            return {
-                "value_daily": daily_window,
-                "value_weekly": this_week,
-                "diff": ((this_week - prev_week) / prev_week * 100)
+            new_signups_response = NewSignupsResponse(
+                value_daily=daily_window,
+                value_weekly=this_week,
+                diff=((this_week - prev_week) / prev_week * 100)
                 if prev_week > 0
                 else None,
-            }
+            )
+
+            if redis_service:
+                # TTL set to 24 hours
+                redis_service.set_cached_data(
+                    "new_signups",
+                    datetime.now(),
+                    new_signups_response,
+                    expire_seconds=86400,
+                )
+
+            return asdict(new_signups_response)
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve signup information", extra={"error": str(e)})
-        return JSONResponse(
-            status_code=501, content="Failed to retrieve signup information"
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve signup information"
         )
     except Exception as e:
         logger.error("Failed to retrieve signup information", extra={"error": str(e)})
-        return JSONResponse(status_code=501, content="Unexpected error ocurred")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred")
 
 
 @admin_router.get("/reports-generated", status_code=200)
@@ -295,6 +362,21 @@ async def get_reports_generated():
 
     :return: Dict with counts of reports generated.
     """
+    try:
+        cached_data = redis_service.get_cached_data(
+            "reports_generated", datetime.now(), ReportsGeneratedResponse
+        )
+
+        if cached_data:
+            cached_obj = cached_data[0]  # ReportsGeneratedResponse
+            # convert dataclass -> dict
+            return asdict(cached_obj)
+
+    except CacheMissError:
+        logger.info("No cached reports generated found.")
+    except Exception as e:
+        logger.error(f"Error retrieving reports generated from cache: {e}")
+
     try:
         with session_factory() as session:
             # TODO move to helper function
@@ -307,17 +389,28 @@ async def get_reports_generated():
 
             daily_report_count = session.execute(stmt_daily).scalar()
 
-            return {
-                "value_daily": daily_report_count,
-            }
+            reports_generated_response = ReportsGeneratedResponse(
+                value_daily=daily_report_count,
+            )
+
+            if redis_service:
+                # TTL set to 24 hours
+                redis_service.set_cached_data(
+                    "reports_generated",
+                    datetime.now(),
+                    reports_generated_response,
+                    expire_seconds=86400,
+                )
+
+            return asdict(reports_generated_response)
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
-        return JSONResponse(
-            status_code=501, content="Failed to retrieve report information"
+        raise HTTPException(
+            status_code=500, detail="Database error occurred while retrieving report information."
         )
     except Exception as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
-        return JSONResponse(status_code=501, content="Unexpected error occurred")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred")
 
 
 @admin_router.get(
@@ -338,6 +431,21 @@ async def get_recent_activities(
     :return: ActivitiesResponse containing a list of recent activities.
     """
     try:
+        cached_data = redis_service.get_cached_data(
+            "recent_activities", datetime.now(), ActivitiesResponseDataclass
+        )
+
+        if cached_data:
+            cached_obj = cached_data[0]  # ActivitiesResponseDataclass
+            # convert dataclass -> dict, then validate into the Pydantic response model
+            return ActivitiesResponse.model_validate(asdict(cached_obj))
+
+    except CacheMissError:
+        logger.info("No cached recent activities found.")
+    except Exception as e:
+        logger.error(f"Error retrieving recent activities from cache: {e}")
+
+    try:
         with session_factory() as session:
             stmt = select(models.RecentActivity)
 
@@ -354,11 +462,25 @@ async def get_recent_activities(
             )
             results = session.execute(stmt).scalars().all()
 
-            activities = [Activity.model_validate(activity) for activity in results]
+            activities = [
+                type_adapter_Activity.validate_python(activity.__dict__)
+                for activity in results
+            ]
 
-            return ActivitiesResponse(
+            activities_response = ActivitiesResponseDataclass(
                 activities=activities, total=total, limit=limit, offset=offset
             )
+
+            if redis_service:
+                # TTL set to 1 hour
+                redis_service.set_cached_data(
+                    "recent_activities",
+                    datetime.now(),
+                    activities_response,
+                    expire_seconds=3600,
+                )
+
+            return activities_response
     except SQLAlchemyError as e:
         logger.exception(
             "Failed to retrieve report information", extra={"error": str(e)}

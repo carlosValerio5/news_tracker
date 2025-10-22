@@ -12,7 +12,7 @@ from helpers.database_helper import DataBaseHelper
 app = FastAPI()
 app.include_router(admin_router)
 client = TestClient(app)
-
+NEW_SIGNUPS = "/admin/new-signups"
 
 # Utility: create a mocked Session context manager
 def make_mock_session(
@@ -234,3 +234,110 @@ def test_post_admin_config_unexpected_error(mocker):
     response = client.post("/admin/admin-config", json=payload)
     assert response.status_code == 500
     assert "Unexpedted error ocurred" in response.json()["detail"]
+
+
+# --------------------------
+# get_new_signups tests
+# --------------------------
+
+
+def test_get_new_signups_cache_hit(mocker):
+    client.app.dependency_overrides[admin_module.get_current_user] = lambda: {
+        "scopes": ["a"]
+    }
+
+    # Mock cache hit
+    mock_response = admin_module.NewSignupsResponse(
+        value_daily=5, value_weekly=25, diff=10.0
+    )
+    mocker.patch.object(
+        admin_module.redis_service, "get_cached_data", return_value=[mock_response]
+    )
+
+    response = client.get(NEW_SIGNUPS)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["value_daily"] == 5
+    assert data["value_weekly"] == 25
+    assert data["diff"] == 10.0
+
+
+def test_get_new_signups_cache_miss_db_success(mocker):
+    client.app.dependency_overrides[admin_module.get_current_user] = lambda: {
+        "scopes": ["a"]
+    }
+
+    # Mock cache miss
+    mocker.patch.object(
+        admin_module.redis_service,
+        "get_cached_data",
+        side_effect=admin_module.CacheMissError("No cache"),
+    )
+
+    # Mock DB session
+    mock_row = MagicMock()
+    mock_row.this_week = 20
+    mock_row.prev_week = 15
+    mock_row.today_window = 3
+
+    mock_session = MagicMock()
+    mock_session.__enter__.return_value = mock_session
+    mock_session.__exit__.return_value = None
+    mock_session.execute.return_value.one.return_value = mock_row
+
+    mocker.patch("api.routers.admin.session_factory", return_value=mock_session)
+
+    # Mock Redis set
+    mocker.patch.object(admin_module.redis_service, "set_cached_data")
+
+    response = client.get(NEW_SIGNUPS)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["value_daily"] == 3
+    assert data["value_weekly"] == 20
+    # (20 - 15) / 15 * 100 = 33.33...
+    assert abs(data["diff"] - 33.333) < 0.1
+
+
+def test_get_new_signups_db_error(mocker):
+    client.app.dependency_overrides[admin_module.get_current_user] = lambda: {
+        "scopes": ["a"]
+    }
+
+    # Mock cache miss
+    mocker.patch.object(
+        admin_module.redis_service,
+        "get_cached_data",
+        side_effect=admin_module.CacheMissError("No cache"),
+    )
+
+    # Mock DB error
+    mocker.patch(
+        "api.routers.admin.session_factory", side_effect=SQLAlchemyError("DB error")
+    )
+
+    response = client.get(NEW_SIGNUPS)
+    assert response.status_code == 500
+    assert "Failed to retrieve signup information" in response.json()["detail"]
+
+
+def test_get_new_signups_unexpected_error(mocker):
+    client.app.dependency_overrides[admin_module.get_current_user] = lambda: {
+        "scopes": ["a"]
+    }
+
+    # Mock cache miss
+    mocker.patch.object(
+        admin_module.redis_service,
+        "get_cached_data",
+        side_effect=admin_module.CacheMissError("No cache"),
+    )
+
+    # Mock unexpected error
+    mocker.patch(
+        "api.routers.admin.session_factory", side_effect=Exception("Unexpected")
+    )
+
+    response = client.get(NEW_SIGNUPS)
+    assert response.status_code == 500
+    assert "Unexpected error occurred" in response.json()["detail"]
