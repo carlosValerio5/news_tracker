@@ -1,4 +1,4 @@
-import imgUrl from "/src/assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg";
+import imgUrl from "../assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg"
 import TransparentCard from "../components/TransparentCard";
 
 const sampleCards = [
