@@ -1,6 +1,7 @@
 """Redis Cache Service Module"""
 
 import redis
+import ssl
 import json
 from dataclasses import asdict
 from datetime import datetime
@@ -32,11 +33,55 @@ class RedisService:
         :param cache_prefix: Prefix for all cache keys to avoid collisions.
         :param logger: Logger instance for logging (optional).
         """
-        self._redis_client = redis.Redis(
-            host=host, port=port, password=password, decode_responses=True
-        )
-        self._cache_prefix = cache_prefix
         self._logger = logger if logger else self._set_logger()
+        try:
+            self._redis_client = self._set_client(port, password, host)
+        except Exception as e:
+            self._logger.error(f"Failed to initialize Redis client: {e}")
+            raise
+        self._cache_prefix = cache_prefix
+
+    def _set_client(self, port: int, password: str, host: str) -> redis.Redis:
+        """
+        Initializes the redis client supporting ssl connection.
+
+        :param port: Port number to connect to.
+        :param password: Password to authenticate cache user.
+        :param host: Host name to reach cache server.
+        :returns Redis: Returns redis client.
+        """
+        try:
+            ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE  # For ElastiCache, cert verification isn't needed
+            self._logger.info(f"Connecting to Redis at {host}:{port}")
+            client = redis.Redis(
+                host=host,
+                port=port,
+                password=password,
+                ssl=True,
+                ssl_cert_reqs=None,
+                ssl_ca_certs=None,
+                ssl_check_hostname=False,
+                socket_timeout=5,
+                socket_connect_timeout=5,
+                socket_keepalive=True,
+                socket_keepalive_options={},
+                retry_on_timeout=True,
+                health_check_interval=30,
+                decode_responses=True
+            )
+            self._logger.info("Connected to Redis successfully.")
+        except redis.RedisError as e:
+            self._logger.error(f"Redis error: {e}")
+            raise
+        except ConnectionError as e:
+            self._logger.error(f"Connection error: {e}")
+            raise
+        except Exception as e:
+            self._logger.error(f"Error connecting to Redis: {e}")
+            raise
+        return client
 
     def _set_logger(self):
         """Get the logger instance."""
