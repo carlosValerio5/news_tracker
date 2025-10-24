@@ -34,9 +34,14 @@ def run_worker():
     nlp_processor = HeadlineProcessService()
     aws_helper = AwsHelper(queue_url=QUEUE_URL, fallback_queue_url=FALLBACK_QUEUE_URL)
     s3_handler = S3Handler(BUCKET_NAME, CDN_DOMAIN_NAME)
-    redis_service = RedisService(
-        host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger
-    )
+
+    try:
+        redis_service = RedisService(
+            host=REDIS_HOST, password=REDIS_PASSWORD, logger=logger
+        )
+    except Exception:
+        logger.exception("Failed to initialize Redis service.")
+        return
 
     worker = WorkerJob(
         google_trends,

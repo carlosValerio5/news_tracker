@@ -54,7 +54,6 @@ class WorkerJob:
 
     def process_messages(self) -> None:
         """Extracts keywords and saves to ArticleKeywords table"""
-
         try:
             messages = self._aws_handler.poll_messages()
         except Exception as e:
@@ -120,9 +119,10 @@ class WorkerJob:
             except Exception:
                 logger.exception("Failed to write trends results.")
                 raise
-
         # Cache the aggregated news report after trends estimation
+        logger.info("Caching daily news report.")
         self._cache_news_report()
+        logger.info("Worker job completed successfully.")
 
     def estimate_popularity(self, result: list[dict]) -> list[dict]:
         """
@@ -330,6 +330,7 @@ class WorkerJob:
             session = self._session_factory()
             try:
                 # Eagerly load keywords and trends to avoid lazy-load issues after session closes
+                logger.debug("Fetching news records for caching.")
                 news_records = (
                     session.query(News)
                     .options(
@@ -340,6 +341,8 @@ class WorkerJob:
                     .where(and_(News.published_at >= today, News.published_at < tomorrow))
                     .all()
                 )
+
+                logger.debug(f"Fetched {len(news_records)} news records for caching.")
 
                 if not news_records:
                     logger.warning("No news records to cache.")
@@ -378,6 +381,7 @@ class WorkerJob:
                 )
 
                 # Attempt to cache with retry on first failure
+                logger.debug("Attempting to cache news report.")
                 self._cache_with_retry(news_report, today)
 
             finally:
@@ -401,13 +405,16 @@ class WorkerJob:
         cache_key = self._redis_service._get_cache_key(
             "daily_news_report", datetime.strptime(date, "%Y-%m-%d")
         )
+        logger.debug(f"Checking cache for key: {cache_key}")
         if self._redis_service.get_value(cache_key):
             logger.info(f"News report already cached for {date}, skipping cache write.")
             return
+        logger.debug("News report not found in cache, proceeding to cache.")
         max_retries = 2
         for attempt in range(1, max_retries + 1):
             try:
                 # Cache the list of NewsReportData items (news_report.news_items)
+                logger.debug("Attempting to cache news report.")
                 self._redis_service.set_cached_data(
                     key="daily_news_report",
                     date=datetime.strptime(date, "%Y-%m-%d"),
