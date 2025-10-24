@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
 from os import getenv
 
@@ -276,9 +277,9 @@ def run_scraping_job():
     with Session(engine) as session:
         try:
             session.execute(text("Select 1"))
-            print("\n\n----------------Connection Successful!")
+            logger.info("\n\n----------------Connection Successful!")
         except Exception as e:
-            print(f"\n\n----------------Connection Failed!:{e}")
+            logger.error(f"\n\n----------------Connection Failed!:{e}")
             return
 
     # test sqs connection
@@ -299,18 +300,25 @@ def run_scraping_job():
         return Session(engine)
 
     results = []
-    try:
+    news = scraper.get_news()
+    # Insert in batches of 25
+    for i in range(0, len(news), 25):
+        item = news[i : i + 25]
         # If duplicate is found the function will not update.
-        results = DataBaseHelper.write_batch_of_objects_and_return(
-            News,
-            session_factory,
-            scraper.get_news(),
-            logger,
-            [News.id, News.headline, News.url],
-            ["url", "headline"],
-        )
-    except Exception as e:
-        logger.exception("Failed to write messages to db", extra={"error": e})
+
+        try:
+            results.extend(DataBaseHelper.write_batch_of_objects_and_return(
+                News,
+                session_factory,
+                item,
+                logger,
+                [News.id, News.headline, News.url],
+                ["url", "headline"],
+            ))
+        except SQLAlchemyError as e:
+            logger.exception("SQLAlchemy error while writing messages to db", extra={"error": e})
+        except Exception as e:
+            logger.exception("Failed to write messages to db", extra={"error": e})
 
     if not results:
         logger.error("Failed to write objects to db.")
