@@ -14,6 +14,7 @@ app.include_router(admin_router)
 client = TestClient(app)
 NEW_SIGNUPS = "/admin/new-signups"
 
+
 # Utility: create a mocked Session context manager
 def make_mock_session(
     execute_result=None, scalars_result=None, execute_side_effect=None

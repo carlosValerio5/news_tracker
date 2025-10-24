@@ -406,7 +406,8 @@ async def get_reports_generated():
     except SQLAlchemyError as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})
         raise HTTPException(
-            status_code=500, detail="Database error occurred while retrieving report information."
+            status_code=500,
+            detail="Database error occurred while retrieving report information.",
         )
     except Exception as e:
         logger.error("Failed to retrieve report information", extra={"error": str(e)})

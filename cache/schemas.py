@@ -39,6 +39,7 @@ class NewSignupsResponse:
     value_weekly: int
     diff: Optional[float]
 
+
 @dataclass
 class NewsReportData:
     id: str
@@ -49,6 +50,7 @@ class NewsReportData:
     current_interest: int
     news_section: str
     thumbnail: str | None
+
 
 @dataclass
 class NewsReport:

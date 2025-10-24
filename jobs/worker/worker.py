@@ -337,7 +337,9 @@ class WorkerJob:
                             ArticleKeywords.trends_result
                         )
                     )
-                    .where(and_(News.published_at >= today, News.published_at < tomorrow))
+                    .where(
+                        and_(News.published_at >= today, News.published_at < tomorrow)
+                    )
                     .all()
                 )
 
