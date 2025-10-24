@@ -59,6 +59,8 @@ def session_factory():
 ORIGINS = [
     "http://localhost:5173",  # Vite dev server
     "http://localhost:4173",  # Vite preview server
+    "http://ec2-3-133-161-31.us-east-2.compute.amazonaws.com:8080",
+    "http://3.133.161.31:8080",
 ]
 
 load_dotenv()
