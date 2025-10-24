@@ -22,6 +22,7 @@ COPY database /app/database
 COPY .env /app/.env
 COPY helpers /app/helpers
 COPY exceptions ./exceptions
+COPY cache /app/cache
 
 FROM python:3.13
 
