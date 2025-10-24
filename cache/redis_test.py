@@ -44,7 +44,20 @@ class TestRedisService:
 
         assert service._cache_prefix == "news_tracker"
         mock_redis_class.assert_called_once_with(
-            host="localhost", port=6379, password=None, decode_responses=True
+            host="localhost",
+            port=6379,
+            password=None,
+            ssl=True,
+            ssl_cert_reqs=None,
+            ssl_ca_certs=None,
+            ssl_check_hostname=False,
+            socket_timeout=5,
+            socket_connect_timeout=5,
+            socket_keepalive=True,
+            socket_keepalive_options={},
+            retry_on_timeout=True,
+            health_check_interval=30,
+            decode_responses=True
         )
 
     def test_init_custom_params(self):
@@ -60,7 +73,20 @@ class TestRedisService:
 
         assert service._cache_prefix == "custom_prefix"
         mock_redis_class.assert_called_once_with(
-            host="custom.host", port=6380, password="secret", decode_responses=True
+            host="custom.host", 
+            port=6380, 
+            password="secret", 
+            ssl=True,
+            ssl_cert_reqs=None,
+            ssl_ca_certs=None,
+            ssl_check_hostname=False,
+            socket_timeout=5,
+            socket_connect_timeout=5,
+            socket_keepalive=True,
+            socket_keepalive_options={},
+            retry_on_timeout=True,
+            health_check_interval=30,
+            decode_responses=True
         )
 
     def test_init_logger_error(self):
