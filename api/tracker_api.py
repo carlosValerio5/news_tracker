@@ -56,11 +56,15 @@ def session_factory():
     return Session(engine)
 
 
+# TODO update origins with deployed front end urls
 ORIGINS = [
     "http://localhost:5173",  # Vite dev server
     "http://localhost:4173",  # Vite preview server
-    "http://ec2-3-133-161-31.us-east-2.compute.amazonaws.com:8080",
-    "http://3.133.161.31:8080",
+    "http://ec2-3-133-161-31.us-east-2.compute.amazonaws.com:8080", #update
+    "http://3.133.161.31:8080", #update
+    "http://news-lb-1737365901.us-east-2.elb.amazonaws.com:8080",
+    "http://ec2-18-116-162-147.us-east-2.compute.amazonaws.com:8080",
+    "http://ec2-3-145-55-96.us-east-2.compute.amazonaws.com:8080",
 ]
 
 load_dotenv()
@@ -320,6 +324,8 @@ def get_news_report():
     """
     Gets the current news report.
     """
+
+    # Hardcode date if needed for demo
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
     today = today.date()

@@ -1,18 +1,24 @@
-import imgUrl from "../assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg";
+//import imgUrl from "../assets/images/fujiphilm-VgU5zIEy57A-unsplash.jpg";
 import TransparentCard from "../components/TransparentCard";
+import { CDN_DOMAIN_NAME } from "../env";
+
+///nasa-Q1p7bh3SHj8-unsplash.jpg
+
+const imageURL = `https://${CDN_DOMAIN_NAME}/landing/`;
+
 
 const sampleCards = [
   {
-    imageUrl: imgUrl,
+    imageUrl: `${imageURL}nasa-Q1p7bh3SHj8-unsplash.jpg`,
     subHeading: "Top Headlines Every Day",
     description:
       "We fetch the world's most relevant news and filter for relevance.",
   },
   {
-    imageUrl: imgUrl,
+    imageUrl: `${imageURL}rob-curran-sUXXO3xPBYo-unsplash.jpg`,
     subHeading: "Popularity Insights",
     description:
-      "We analyze trending topics so you'll biw what's popular nowadays.",
+      "We analyze trending topics so you'll know what's popular nowadays.",
   },
 ];
 

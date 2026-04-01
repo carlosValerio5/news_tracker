@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import SearchBar from "./SearchBar";
+//import SearchBar from "./SearchBar";
 import RegisterButton from "./RegisterButton";
 import { Link } from "react-router-dom";
 
@@ -81,7 +81,7 @@ const NavBar: React.FC<NavBarProps> = ({ scroll = false }) => {
       </div>
 
       <div className="hidden sm:flex w-full sm:w-auto flex-col sm:flex-row items-center sm:justify-end gap-2 sm:gap-6 ml-auto">
-        <SearchBar />
+        {/* <SearchBar /> */}
         <Link
           to="/news"
           className="text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition"
@@ -95,7 +95,7 @@ const NavBar: React.FC<NavBarProps> = ({ scroll = false }) => {
         <div
           className={`sm:hidden absolute top-full left-0 w-full ${dropdownBg} shadow-md z-10 flex flex-col items-center gap-2 py-4`}
         >
-          <SearchBar />
+          {/* <SearchBar /> */}
           <Link
             to="/news"
             className="text-current text-base px-2 py-1 rounded hover:bg-black hover:text-white transition w-11/12 text-center"
